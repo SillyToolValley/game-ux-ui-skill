@@ -14,15 +14,20 @@ design research. Collection is intentionally conservative:
 from __future__ import annotations
 
 import argparse
+import hashlib
+import ipaddress
 import json
+import math
 import os
 import re
+import socket
 import struct
 import sys
+import tempfile
 import time
 from collections import Counter
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from html import unescape
 from html.parser import HTMLParser
 from pathlib import Path
@@ -36,16 +41,19 @@ VIDEO_EXTS = {".mp4", ".webm", ".mov", ".m4v"}
 HTML_EXTS = {".html", ".htm"}
 MEDIA_EXTS = IMAGE_EXTS | VIDEO_EXTS | HTML_EXTS
 MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024
-__version__ = "0.3.0"
+MAX_ROBOTS_BYTES = 1024 * 1024
+MAX_ERROR_BODY_BYTES = 64 * 1024
+__version__ = "0.4.0"
 
 DEFAULT_CONFIG = {
     "project_name": "",
     "local_refs": "references/ui",
     "workspace": "ui_research",
     "urls_file": "ui_research/urls.txt",
+    "design_workspace": "ui_design",
     "default_delay_seconds": 8.0,
     "default_max_pages": 20,
-    "user_agent": "ui-ref-cli/0.2 (+https://github.com/SillyToolValley/Game-UI-Reference-Cli)",
+    "user_agent": f"ui-ref-cli/{__version__} (+https://github.com/SillyToolValley/Game-UI-Reference-Cli)",
     "gallery_class": "galleryimage",
 }
 
@@ -182,7 +190,19 @@ class LinkExtractor(HTMLParser):
 
 
 def now_stamp() -> str:
-    return datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+    return datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
+
+
+def now_iso() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
+
+
+def file_sha256(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def is_media_url(url: str) -> bool:
@@ -207,12 +227,42 @@ def read_text(path: Path) -> str:
 
 def write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(content, encoding="utf-8", newline="\n")
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp_name, path)
+    except Exception:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        Path(temp_name).unlink(missing_ok=True)
+        raise
 
 
 def write_json(path: Path, data: Any) -> None:
+    write_text(path, json.dumps(data, ensure_ascii=False, indent=2) + "\n")
+
+
+def write_bytes(path: Path, content: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8", newline="\n")
+    fd, temp_name = tempfile.mkstemp(prefix=f".{path.name}.", suffix=".tmp", dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "wb") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temp_name, path)
+    except Exception:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        Path(temp_name).unlink(missing_ok=True)
+        raise
 
 
 def load_json(path: Path) -> Any:
@@ -231,7 +281,11 @@ def rel_to_root(root: Path, path: Path) -> str:
 
 def resolve_under_root(root: Path, value: str) -> Path:
     candidate = Path(value)
-    return candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+    resolved = candidate.resolve() if candidate.is_absolute() else (root / candidate).resolve()
+    root_resolved = root.resolve()
+    if not resolved.is_relative_to(root_resolved):
+        raise SystemExit(f"Path must stay inside the project root: {value}")
+    return resolved
 
 
 def safe_slug(text: str, fallback: str = "item") -> str:
@@ -279,19 +333,40 @@ def default_config(root: Path | None = None) -> dict[str, Any]:
     return cfg
 
 
+def validate_config(cfg: dict[str, Any], path: Path | None = None) -> dict[str, Any]:
+    location = f" in {path}" if path else ""
+    string_keys = ("project_name", "local_refs", "workspace", "urls_file", "design_workspace", "user_agent", "gallery_class")
+    for key in string_keys:
+        if key not in cfg or not isinstance(cfg[key], str):
+            raise SystemExit(f"Invalid config{location}: {key!r} must be a string.")
+    for key in ("local_refs", "workspace", "urls_file", "design_workspace"):
+        if not cfg[key].strip():
+            raise SystemExit(f"Invalid config{location}: {key!r} cannot be empty.")
+    delay = cfg.get("default_delay_seconds")
+    max_pages = cfg.get("default_max_pages")
+    if not isinstance(delay, (int, float)) or delay < 0:
+        raise SystemExit(f"Invalid config{location}: default_delay_seconds must be >= 0.")
+    if not isinstance(max_pages, int) or max_pages < 1:
+        raise SystemExit(f"Invalid config{location}: default_max_pages must be >= 1.")
+    return cfg
+
+
 def load_config(root: Path, args: argparse.Namespace, required: bool = False) -> dict[str, Any]:
     path = discover_config_path(root, args)
     if path.exists():
         cfg = default_config(root)
-        cfg.update(load_json(path))
-        return cfg
+        loaded = load_json(path)
+        if not isinstance(loaded, dict):
+            raise SystemExit(f"Invalid config: {path} must contain a JSON object.")
+        cfg.update(loaded)
+        return validate_config(cfg, path)
     if required:
         raise SystemExit(f"Config not found: {path}. Run `ui-ref init` first.")
-    return default_config(root)
+    return validate_config(default_config(root))
 
 
 def cfg_path(root: Path, cfg: dict[str, Any], key: str) -> Path:
-    return (root / cfg[key]).resolve()
+    return resolve_under_root(root, str(cfg[key]))
 
 
 def image_dimensions(path: Path) -> tuple[int, int] | None:
@@ -308,6 +383,19 @@ def image_dimensions(path: Path) -> tuple[int, int] | None:
                 if header[:6] in (b"GIF87a", b"GIF89a") and len(header) >= 10:
                     width, height = struct.unpack("<HH", header[6:10])
                     return int(width), int(height)
+            if suffix == ".webp":
+                header = f.read(30)
+                if len(header) >= 30 and header[:4] == b"RIFF" and header[8:12] == b"WEBP":
+                    chunk = header[12:16]
+                    if chunk == b"VP8X":
+                        return 1 + int.from_bytes(header[24:27], "little"), 1 + int.from_bytes(header[27:30], "little")
+                    if chunk == b"VP8 " and header[23:26] == b"\x9d\x01\x2a":
+                        return int.from_bytes(header[26:28], "little") & 0x3FFF, int.from_bytes(header[28:30], "little") & 0x3FFF
+                    if chunk == b"VP8L" and header[20] == 0x2F:
+                        b1, b2, b3, b4 = header[21:25]
+                        width = 1 + (((b2 & 0x3F) << 8) | b1)
+                        height = 1 + (((b4 & 0x0F) << 10) | (b3 << 2) | ((b2 & 0xC0) >> 6))
+                        return width, height
             if suffix in {".jpg", ".jpeg"}:
                 if f.read(2) != b"\xff\xd8":
                     return None
@@ -386,13 +474,20 @@ def manifest_markdown(manifest: dict[str, Any]) -> str:
     for item in manifest["items"]:
         tags = ", ".join(item["tags"]) or "untagged"
         dims = f"{item['width']}x{item['height']}" if item.get("width") and item.get("height") else "unknown"
-        lines.append(f"- `{item['path']}` | {item['collection']} / {item['category']} | {item['media_type']} | {dims} | {tags}")
+        digest = str(item.get("sha256", ""))
+        lines.append(f"- `{item['path']}` | {item['collection']} / {item['category']} | {item['media_type']} | {dims} | {tags} | sha256 `{digest}`")
     return "\n".join(lines) + "\n"
 
 
 def command_init(args: argparse.Namespace) -> int:
     root = project_root_from_args(args)
     cfg = default_config(root)
+    existing_config = discover_config_path(root, args)
+    if existing_config.exists():
+        loaded = load_json(existing_config)
+        if not isinstance(loaded, dict):
+            raise SystemExit(f"Invalid config: {existing_config} must contain a JSON object.")
+        cfg.update(loaded)
     if args.project_name:
         cfg["project_name"] = args.project_name
     if args.local_refs:
@@ -403,10 +498,10 @@ def command_init(args: argparse.Namespace) -> int:
             cfg["urls_file"] = default_urls_file(cfg["workspace"])
     if args.urls_file:
         cfg["urls_file"] = config_slash_path(args.urls_file)
-    cfg_path_value = config_path(root, args)
-    existing_config = discover_config_path(root, args)
-    if existing_config.exists() and existing_config.resolve() != cfg_path_value.resolve():
-        print(f"Warning: existing config at {existing_config} will be shadowed by {cfg_path_value}")
+    if args.design_workspace:
+        cfg["design_workspace"] = config_slash_path(args.design_workspace)
+    cfg_path_value = config_path(root, args) if getattr(args, "config", None) else (existing_config if existing_config.exists() else config_path(root, args))
+    validate_config(cfg, cfg_path_value)
     workspace = cfg_path(root, cfg, "workspace")
     for folder in ("cache/html", "cache/assets", "manifests"):
         (workspace / folder).mkdir(parents=True, exist_ok=True)
@@ -438,8 +533,13 @@ def command_scan_local(args: argparse.Namespace) -> int:
         raise SystemExit(f"Local references directory not found: {refs_root}")
 
     items: list[dict[str, Any]] = []
+    skipped_outside = 0
+    refs_resolved = refs_root.resolve()
     for path in sorted(refs_root.rglob("*")):
         if not path.is_file() or path.suffix.lower() not in MEDIA_EXTS:
+            continue
+        if not path.resolve().is_relative_to(refs_resolved):
+            skipped_outside += 1
             continue
         rel = path.relative_to(refs_root)
         parts = rel.parts
@@ -456,6 +556,8 @@ def command_scan_local(args: argparse.Namespace) -> int:
             "media_type": media_type,
             "extension": suffix,
             "size_bytes": path.stat().st_size,
+            "sha256": file_sha256(path),
+            "modified_at": datetime.fromtimestamp(path.stat().st_mtime, timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
             "tags": infer_tags(str(rel)),
         }
         if dims:
@@ -463,7 +565,9 @@ def command_scan_local(args: argparse.Namespace) -> int:
         items.append(item)
 
     manifest = {
-        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "manifest_version": "1.1",
+        "tool_version": __version__,
+        "generated_at": now_iso(),
         "source_type": "local_scan",
         "tool_command": "scan-local",
         "local_refs": rel_to_root(root, refs_root),
@@ -475,21 +579,69 @@ def command_scan_local(args: argparse.Namespace) -> int:
     write_json(out_json, manifest)
     write_text(out_md, manifest_markdown(manifest))
     print(f"Indexed {len(items)} local UI reference files.")
+    if skipped_outside:
+        print(f"Skipped {skipped_outside} symlinked file(s) resolving outside the local reference root.")
     print(f"Manifest: {out_json}")
     print(f"Summary: {out_md}")
     return 0
 
 
-def can_fetch_url(url: str, user_agent: str, timeout: float = 10.0) -> tuple[bool, str]:
+def is_public_http_url(url: str) -> tuple[bool, str]:
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
         return False, f"unsupported-scheme:{parsed.scheme or 'none'}"
+    hostname = (parsed.hostname or "").strip(".").lower()
+    if not hostname:
+        return False, "missing-host"
+    if parsed.username is not None or parsed.password is not None:
+        return False, "userinfo-not-allowed"
+    if hostname in {"localhost", "localhost.localdomain"} or hostname.endswith((".localhost", ".local", ".internal")):
+        return False, "private-host"
+    try:
+        addresses = {item[4][0] for item in socket.getaddrinfo(hostname, parsed.port or (443 if parsed.scheme == "https" else 80), type=socket.SOCK_STREAM)}
+    except socket.gaierror:
+        return False, "dns-resolution-failed"
+    if not addresses:
+        return False, "dns-no-address"
+    for raw in addresses:
+        try:
+            address = ipaddress.ip_address(raw.split("%", 1)[0])
+        except ValueError:
+            return False, "invalid-address"
+        if any((address.is_private, address.is_loopback, address.is_link_local, address.is_multicast, address.is_reserved, address.is_unspecified)):
+            return False, f"non-public-address:{address}"
+    return True, "public"
+
+
+class PublicRedirectHandler(request.HTTPRedirectHandler):
+    def redirect_request(self, req: request.Request, fp: Any, code: int, msg: str, headers: Any, newurl: str) -> request.Request | None:
+        allowed, reason = is_public_http_url(newurl)
+        if not allowed:
+            raise error.URLError(f"redirect blocked ({reason}): {newurl}")
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def safe_urlopen(req: request.Request, timeout: float) -> Any:
+    allowed, reason = is_public_http_url(req.full_url)
+    if not allowed:
+        raise error.URLError(f"URL blocked ({reason}): {req.full_url}")
+    return request.build_opener(PublicRedirectHandler()).open(req, timeout=timeout)
+
+
+def can_fetch_url(url: str, user_agent: str, timeout: float = 10.0) -> tuple[bool, str]:
+    parsed = urlparse(url)
+    public, public_note = is_public_http_url(url)
+    if not public:
+        return False, public_note
     robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
     rp = robotparser.RobotFileParser()
     rp.set_url(robots_url)
     try:
-        with request.urlopen(request.Request(robots_url, headers={"User-Agent": user_agent}), timeout=timeout) as resp:
-            raw = resp.read().decode("utf-8", errors="replace")
+        with safe_urlopen(request.Request(robots_url, headers={"User-Agent": user_agent}), timeout=timeout) as resp:
+            raw_bytes = resp.read(MAX_ROBOTS_BYTES + 1)
+            if len(raw_bytes) > MAX_ROBOTS_BYTES:
+                return False, "robots-too-large"
+            raw = raw_bytes.decode("utf-8", errors="replace")
         rp.parse(raw.splitlines())
     except error.HTTPError as exc:
         if exc.code in (401, 403):
@@ -505,18 +657,21 @@ def can_fetch_url(url: str, user_agent: str, timeout: float = 10.0) -> tuple[boo
 
 def fetch_static(url: str, user_agent: str, timeout: float) -> HtmlFetchResult:
     req = request.Request(url, headers={"User-Agent": user_agent, "Accept": "text/html,application/xhtml+xml"})
-    fetched_at = datetime.now().isoformat(timespec="seconds")
+    fetched_at = now_iso()
     try:
-        with request.urlopen(req, timeout=timeout) as resp:
+        with safe_urlopen(req, timeout=timeout) as resp:
             raw = resp.read(MAX_DOWNLOAD_BYTES + 1)
             if len(raw) > MAX_DOWNLOAD_BYTES:
                 return HtmlFetchResult(url, resp.status, resp.headers.get("content-type", ""), "", fetched_at,
                                        f"response exceeds {MAX_DOWNLOAD_BYTES} bytes; skipped")
+            content_type = (resp.headers.get("content-type", "") or "").lower()
+            if content_type and not content_type.startswith(("text/html", "application/xhtml+xml")):
+                return HtmlFetchResult(resp.geturl(), resp.status, content_type, "", fetched_at, f"non-HTML content-type: {content_type}")
             charset = resp.headers.get_content_charset() or "utf-8"
             html = raw.decode(charset, errors="replace")
-            return HtmlFetchResult(url, resp.status, resp.headers.get("content-type", ""), html, fetched_at)
+            return HtmlFetchResult(resp.geturl(), resp.status, resp.headers.get("content-type", ""), html, fetched_at)
     except error.HTTPError as exc:
-        body = exc.read().decode("utf-8", errors="replace") if exc.fp else ""
+        body = exc.read(MAX_ERROR_BODY_BYTES).decode("utf-8", errors="replace") if exc.fp else ""
         return HtmlFetchResult(url, exc.code, exc.headers.get("content-type", ""), body, fetched_at, str(exc))
     except Exception as exc:
         return HtmlFetchResult(url, "ERROR", "", "", fetched_at, f"{type(exc).__name__}: {exc}")
@@ -525,7 +680,7 @@ def fetch_static(url: str, user_agent: str, timeout: float) -> HtmlFetchResult:
 def fetch_browser(url: str, timeout_ms: int, wait_ms: int, headless: bool, scroll: int = 0, user_agent: str = BROWSER_UA) -> HtmlFetchResult:
     """Render a JS page with a headless browser (Playwright) and return the final HTML.
     Optionally scroll to trigger lazy-loaded images. Used only by `collect --browser`."""
-    fetched_at = datetime.now().isoformat(timespec="seconds")
+    fetched_at = now_iso()
     try:
         from playwright.sync_api import sync_playwright  # type: ignore
     except Exception as exc:
@@ -541,11 +696,19 @@ def fetch_browser(url: str, timeout_ms: int, wait_ms: int, headless: bool, scrol
                 if "Executable doesn't exist" in msg or "playwright install" in msg.lower():
                     return HtmlFetchResult(url, "ERROR", "", "", fetched_at,
                         "Chromium is not installed for Playwright. Run this one-time setup "
-                        "(~150MB): playwright install chromium  — then retry `ui-ref collect --browser`.")
+                        "(~150MB): playwright install chromium - then retry `ui-ref collect --browser`.")
                 raise
             try:
                 context = browser.new_context(user_agent=user_agent, viewport={"width": 1366, "height": 900}, locale="en-US")
                 page = context.new_page()
+                route_cache: dict[str, bool] = {}
+                def guard_route(route: Any) -> None:
+                    request_url = route.request.url
+                    host = (urlparse(request_url).hostname or "").lower()
+                    if host not in route_cache:
+                        route_cache[host] = is_public_http_url(request_url)[0]
+                    route.continue_() if route_cache[host] else route.abort("blockedbyclient")
+                page.route("**/*", guard_route)
                 response = page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
                 status = response.status if response else "OK"
                 content_type = (response.headers.get("content-type", "") if response else "") or "text/html"
@@ -559,7 +722,9 @@ def fetch_browser(url: str, timeout_ms: int, wait_ms: int, headless: bool, scrol
                     page.mouse.wheel(0, 24000)
                     page.wait_for_timeout(900)
                 html = page.content()
-                return HtmlFetchResult(url, status, content_type, html, fetched_at)
+                if len(html.encode("utf-8")) > MAX_DOWNLOAD_BYTES:
+                    return HtmlFetchResult(page.url, status, content_type, "", fetched_at, f"rendered response exceeds {MAX_DOWNLOAD_BYTES} bytes; skipped")
+                return HtmlFetchResult(page.url, status, content_type, html, fetched_at)
             finally:
                 browser.close()
     except Exception as exc:
@@ -644,19 +809,20 @@ def download_binary(url: str, destination: Path, user_agent: str, timeout: float
         },
     )
     try:
-        with request.urlopen(req, timeout=timeout) as resp:
+        with safe_urlopen(req, timeout=timeout) as resp:
             content_type = resp.headers.get("content-type", "")
             raw = resp.read(MAX_DOWNLOAD_BYTES + 1)
             if len(raw) > MAX_DOWNLOAD_BYTES:
                 return {"status": resp.status, "content_type": content_type, "bytes": 0, "error": f"exceeds {MAX_DOWNLOAD_BYTES} byte limit"}
             if content_type.lower().startswith(("text/", "application/xhtml", "application/json")):
                 return {"status": resp.status, "content_type": content_type, "bytes": 0, "error": f"non-image content-type: {content_type}"}
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            destination.write_bytes(raw)
+            write_bytes(destination, raw)
             return {
                 "status": resp.status,
                 "content_type": content_type,
                 "bytes": len(raw),
+                "sha256": hashlib.sha256(raw).hexdigest(),
+                "final_url": resp.geturl(),
                 "error": "",
             }
     except error.HTTPError as exc:
@@ -687,6 +853,9 @@ def download_gallery_assets(
     gallery_source: list[dict[str, Any]] | None = None,
 ) -> None:
     downloaded: list[dict[str, Any]] = []
+    if limit <= 0:
+        record["downloaded_assets"] = downloaded
+        return
     seen: set[str] = set()
     page_index = int(record.get("index", 0))
     lowered_filters = [value.lower() for value in title_filters or [] if value.strip()]
@@ -742,6 +911,12 @@ def _esc(text: Any) -> str:
     )
 
 
+def _safe_href(value: Any) -> str:
+    url = str(value or "").strip()
+    parsed = urlparse(url)
+    return url if parsed.scheme in {"http", "https"} and parsed.netloc and parsed.username is None and parsed.password is None else "#"
+
+
 def write_contact_sheet(out_path: Path, run_id: str, records: list[dict[str, Any]], root: Path) -> int:
     """Write a browsable HTML contact sheet of what a collect run gathered.
 
@@ -766,7 +941,7 @@ def write_contact_sheet(out_path: Path, run_id: str, records: list[dict[str, Any
             caption = asset.get("title", "") or Path(local).name
             cards.append(
                 f'<figure><img loading="lazy" src="{_esc(src_attr)}" alt="{_esc(caption)}"/>'
-                f'<figcaption>{_esc(caption)}<br><a href="{_esc(asset.get("source_url", ""))}">source</a>'
+                f'<figcaption>{_esc(caption)}<br><a href="{_esc(_safe_href(asset.get("source_url", "")))}">source</a>'
                 f'{(" · " + _esc(asset.get("size", ""))) if asset.get("size") else ""}</figcaption></figure>'
             )
         for gallery in record.get("gallery_items", []):
@@ -774,13 +949,14 @@ def write_contact_sheet(out_path: Path, run_id: str, records: list[dict[str, Any
                 "<tr>"
                 f'<td>{_esc(gallery.get("title", ""))}</td>'
                 f'<td>{_esc(gallery.get("size", ""))}</td>'
-                f'<td><a href="{_esc(gallery.get("image_url", ""))}">image</a></td>'
+                f'<td><a href="{_esc(_safe_href(gallery.get("image_url", "")))}">image</a></td>'
                 "</tr>"
             )
     body_cards = "".join(cards) or "<p>No assets downloaded — re-run with <code>--download-gallery-assets</code>.</p>"
     body_rows = "".join(rows) or "<tr><td colspan=\"3\">No gallery items extracted (try <code>--browser</code>).</td></tr>"
     html = (
         "<!doctype html>\n<html lang=\"en\"><head><meta charset=\"utf-8\">"
+        "<meta http-equiv=\"Content-Security-Policy\" content=\"default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'\">"
         f"<title>ui-ref contact sheet {_esc(run_id)}</title>\n"
         "<style>"
         "body{font-family:system-ui,Arial,sans-serif;background:#17131f;color:#ead9b9;margin:24px}"
@@ -792,7 +968,7 @@ def write_contact_sheet(out_path: Path, run_id: str, records: list[dict[str, Any
         "table{border-collapse:collapse;width:100%;margin-top:8px}"
         "td,th{border-bottom:1px solid #3a2f44;padding:6px;font-size:13px;text-align:left}"
         "</style></head><body>\n"
-        f"<h1>UI reference contact sheet — run {_esc(run_id)}</h1>\n"
+        f"<h1>UI reference contact sheet - run {_esc(run_id)}</h1>\n"
         f"<p>Pages: {len(records)} · downloaded thumbnails: {len(cards)} · gallery items: {len(rows)}. "
         "Open this file in a browser.</p>\n"
         f"<h2>Downloaded thumbnails</h2>\n<div class=\"grid\">{body_cards}</div>\n"
@@ -817,6 +993,22 @@ def command_collect(args: argparse.Namespace) -> int:
     max_pages = args.max_pages if args.max_pages is not None else int(cfg["default_max_pages"])
     delay = args.delay if args.delay is not None else float(cfg["default_delay_seconds"])
     timeout = float(args.timeout)
+    numeric_rules = {
+        "max-pages": (max_pages, 1, True),
+        "delay": (delay, 0, True),
+        "timeout": (timeout, 0, False),
+        "wait": (args.wait, 0, True),
+        "scroll": (args.scroll, 0, True),
+        "keep-links": (args.keep_links, 0, True),
+        "keep-assets": (args.keep_assets, 0, True),
+        "keep-gallery": (args.keep_gallery, 0, True),
+        "download-asset-limit": (args.download_asset_limit, 0, True),
+    }
+    for name, (value, boundary, inclusive) in numeric_rules.items():
+        valid = isinstance(value, (int, float)) and math.isfinite(value) and (value >= boundary if inclusive else value > boundary)
+        if not valid:
+            operator = ">=" if inclusive else ">"
+            raise SystemExit(f"--{name} must be {operator} {boundary}.")
     selected = urls[:max_pages]
     run_id = now_stamp()
     run_dir = workspace / "cache" / "html" / run_id
@@ -831,7 +1023,7 @@ def command_collect(args: argparse.Namespace) -> int:
             "url": url,
             "robots": robots_note,
             "allowed_by_robots": allowed,
-            "fetched_at": datetime.now().isoformat(timespec="seconds"),
+            "fetched_at": now_iso(),
         }
         if not allowed:
             record["status"] = "SKIPPED"
@@ -841,10 +1033,11 @@ def command_collect(args: argparse.Namespace) -> int:
         else:
             print(f"[{index}/{len(selected)}] fetching: {url}")
             if args.browser:
-                result = fetch_browser(url, timeout_ms=int(timeout * 1000), wait_ms=int(args.wait), headless=not args.no_headless, scroll=args.scroll, user_agent=BROWSER_UA)
+                result = fetch_browser(url, timeout_ms=int(timeout * 1000), wait_ms=int(args.wait), headless=not args.no_headless, scroll=args.scroll, user_agent=user_agent)
             else:
                 result = fetch_static(url, user_agent=user_agent, timeout=timeout)
             record["status"] = result.status
+            record["final_url"] = result.url
             record["content_type"] = result.content_type
             record["error"] = result.error
             if result.html:
@@ -854,9 +1047,10 @@ def command_collect(args: argparse.Namespace) -> int:
                 write_text(html_path, result.html)
                 gallery_class = resolve_gallery_class(url, args.gallery_class, args.site, cfg)
                 extracted = extract_links(result.html, url, gallery_class=gallery_class)
-                if resolve_mode(url, args.mode, args.gallery_class, args.site) == "images" and not extracted["gallery_items"]:
+                if resolve_mode(url, args.mode, args.gallery_class, args.site) == "images":
                     extracted["gallery_items"] = harvest_image_items(extracted["assets"])
                 record["html_path"] = rel_to_root(root, html_path)
+                record["html_sha256"] = hashlib.sha256(result.html.encode("utf-8")).hexdigest()
                 record["page_title"] = extracted["title"]
                 record["link_count"] = len(extracted["links"])
                 record["asset_count"] = len(extracted["assets"])
@@ -881,7 +1075,9 @@ def command_collect(args: argparse.Namespace) -> int:
             time.sleep(delay)
 
     manifest = {
-        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "manifest_version": "1.1",
+        "tool_version": __version__,
+        "generated_at": now_iso(),
         "source_type": "external_collect",
         "tool_command": "collect",
         "run_id": run_id,
@@ -901,7 +1097,7 @@ def command_collect(args: argparse.Namespace) -> int:
     if not args.browser and total_gallery == 0 and any_html:
         print(
             "Tip: 0 items were extracted with the static fetcher. Most reference sites are "
-            "JavaScript-rendered — re-run with --browser (needs: pip install 'ui-ref-cli[browser]' "
+            "JavaScript-rendered - re-run with --browser (needs: pip install 'ui-ref-cli[browser]' "
             "&& playwright install chromium). For a structured gallery, set --gallery-class; "
             "for a generic image harvest, use --mode images."
         )
@@ -909,10 +1105,11 @@ def command_collect(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="ui-ref", description="Local UI reference research CLI.")
+    parser = argparse.ArgumentParser(prog="ui-ref", description="Evidence-backed game UX/UI research and specification compiler.")
     parser.add_argument("--version", action="version", version=f"ui-ref {__version__}")
     parser.add_argument("--project-root", default=".", help="Project root. Default: current directory.")
     parser.add_argument("--config", default=None, help="Path to ui_ref_config.json.")
+    parser.add_argument("--design-root", default=None, help="Structured design workspace. Default: config design_workspace or ui_design.")
     sub = parser.add_subparsers(dest="command", required=True)
 
     init = sub.add_parser("init", help="Create the UI research workspace and config.")
@@ -920,6 +1117,7 @@ def build_parser() -> argparse.ArgumentParser:
     init.add_argument("--local-refs", default=None, help="Local UI reference folder. Default: references/ui.")
     init.add_argument("--workspace", default=None, help="UI research workspace. Default: ui_research.")
     init.add_argument("--urls-file", default=None, help="URL list path. Default: <workspace>/urls.txt.")
+    init.add_argument("--design-workspace", default=None, help="Structured UX/UI contract folder. Default: ui_design.")
     init.set_defaults(func=command_init)
 
     scan = sub.add_parser("scan-local", help="Index local UI reference files into a manifest.")
@@ -948,10 +1146,23 @@ def build_parser() -> argparse.ArgumentParser:
     collect.add_argument("--download-title-contains", action="append", default=[], help="Only download gallery images whose title contains this text (items without a title are excluded). Can be repeated.")
     collect.set_defaults(func=command_collect)
 
+    # Keep design dependencies lazy so legacy init/scan/collect remain lightweight.
+    from ui_ref_design import register_design_commands
+    register_design_commands(sub)
+
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
+    # Windows terminals frequently default to cp949. Keep diagnostics from
+    # crashing when a URL, path, or localized title contains another glyph.
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(errors="replace")
+            except (OSError, ValueError):
+                pass
     parser = build_parser()
     args = parser.parse_args(argv)
     return int(args.func(args))

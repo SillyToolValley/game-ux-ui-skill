@@ -1,12 +1,34 @@
-# Design document structure — document skeleton, per-screen anatomy, and the hard rules
+# Contract and generated-document structure
 
-The copy-paste blanks live in `../templates/design-skeleton.md` and `../templates/per-screen.md`.
-This file explains **what each part is for and the rules that make the design document implementable**.
+The canonical source is the JSON workspace created by `ui-ref spec init`. The copy-paste blanks
+in `../templates/design-skeleton.md` and `../templates/per-screen.md` are checklists and a fallback
+when the CLI is unavailable; they are not a second source of truth. `ui-ref spec build` compiles
+the canonical contracts into consistent Markdown, HTML, SVG, prototype, and engine-facing views.
 
-The deliverable is an **annotated design document / redline** — a callout + legend + state + acceptance
-**layer over the intended visual**. It is *not* a fresh fidelity level; it's an annotation
-layer. Distinguish it from: wireframe (structure/hierarchy, low-fi) → mockup (visual, hi-fi)
-→ prototype (interactive). This skill produces the annotated design document, built on a wireframe.
+The human-readable deliverable is an **annotated design specification / redline**: a callout,
+state, input, accessibility, evidence, binding, and acceptance layer over the intended visual.
+It is not final art. Distinguish wireframe (structure) → mockup (visual direction) → prototype
+(interaction) → engine implementation (runtime truth).
+
+## Canonical workspace
+
+```text
+ui_design/
+  project.json                 project scope and quality gates
+  tokens.json                  visual/input/motion assumptions and decisions
+  flows.json                   screen transitions
+  references.json              evidence catalog with hashes and source URLs
+  decisions.json               review decisions and rationale
+  approvals.json               revision/hash/dependency ledger
+  screens/*.json               screen contracts
+  components/*.json            reusable component contracts
+  wireframes/*.uiwire          deterministic wireframe source
+  build/                       generated; do not hand-edit
+```
+
+Lifecycle is `draft → reviewed → approved`. AI may draft/review, but only an explicitly named
+human may approve the exact revision. Approval records include the content hash and dependency
+snapshot; changed tokens, flows, references, or components make the approval stale.
 
 ---
 
@@ -16,7 +38,7 @@ The four non-negotiable wrappers (Kiess, *A Practical Guide to UX Specifications
 Introduction, Annotated wireframes (the core), Version history.** Full order:
 
 ```
-0. 표지 (Title)              문서명 / 기능 / 버전 / 날짜 / 작성자 / 상태(draft·review·approved)
+0. 표지 (Title)              문서명 / 기능 / 버전 / 날짜 / 작성자 / 상태(draft·reviewed·approved)
 1. 개요 및 목표               문제 / 측정가능 성공지표 / 포함·제외 범위
 2. 사용자 및 맥락             페르소나 / 플랫폼·입력장치 / 진입 맥락 / 가정
 3. 화면 흐름도 (wireflow)     화면=박스, 화살표=전이(이벤트 라벨), 분기=다이아몬드; 상태↔HUD 매핑
@@ -25,7 +47,7 @@ Introduction, Annotated wireframes (the core), Version history.** Full order:
 6. 공통 규칙                  내비 모델 / 글로벌 empty·loading·error / 접근성 글로벌
 7. 미해결 질문                화면별 질문을 여기로 집계 (살아있는 섹션)
 8. 버전 이력                  버전별 changelog
-부록                         전체 흐름도 / references/ui 매니페스트 링크
+부록                         전체 흐름도 / 증거·승인·의존성 추적 링크
 ```
 
 Wireflow conventions (NN/g): explicit **entry trigger** + **success/error exits** on each

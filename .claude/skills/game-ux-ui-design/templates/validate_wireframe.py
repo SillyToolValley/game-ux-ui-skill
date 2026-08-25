@@ -9,8 +9,8 @@ Checks (each a PASS/FAIL line):
   - XML well-formed
   - full-canvas background <rect> present as an early element (dark-mode label safety)
   - <= 10 callouts per frame
-  - every callout number appears exactly twice in badge text (on-region badge + gutter label)
-  - leader polylines (class~="lead") have <= 4 points (exactly one vertical bend; no extra stub)
+  - callout group IDs are unique/sequential and map 1:1 to two matching badges + one leader
+  - leader polylines (class~="lead") have exactly 4 orthogonal points
   - no two leader segments cross (ccw segment-intersection, shared endpoints ignored)
   - gutter balance: labels live only in the gutters (x<200 or x>frame_right); neither side > 6;
     left/right imbalance <= 2
@@ -19,7 +19,7 @@ Checks (each a PASS/FAIL line):
 Exit code 0 if all pass, 1 otherwise. The legend-row<->badge mapping must still be
 eyeballed against the .md (the SVG alone can't see the table).
 """
-import sys, xml.dom.minidom as M
+import re, sys, xml.dom.minidom as M
 
 def seg_cross(p, q, r, s):
     # TRUE X-crossing only: segments intersect at an interior point of BOTH.
@@ -55,10 +55,32 @@ def check(path):
     # callout groups
     cgs = [g for g in d.getElementsByTagName("g") if g.getAttribute("id").startswith("c")]
     if len(cgs) > 10: fails.append(f"{len(cgs)} callouts > 10 cap (split into a second diagram)")
-    # badge numbers appear twice
+    # Every XML ID is unique; callouts use c1..cN and own two matching badges + one leader.
+    all_ids = [node.getAttribute("id") for node in d.getElementsByTagName("*") if node.getAttribute("id")]
+    from collections import Counter
+    duplicate_ids = sorted(value for value, count in Counter(all_ids).items() if count > 1)
+    if duplicate_ids: fails.append(f"duplicate XML id(s): {', '.join(duplicate_ids)}")
+    callout_numbers = []
+    for group in cgs:
+        match = re.fullmatch(r'c(\d+)', group.getAttribute("id"))
+        if not match:
+            fails.append(f"callout group id '{group.getAttribute('id')}' must be c<number>")
+            continue
+        number = match.group(1); callout_numbers.append(int(number))
+        group_badges = [t.firstChild.data.strip() for t in group.getElementsByTagName("text")
+                        if "badgeT" in t.getAttribute("class") and t.firstChild]
+        if group_badges != [number, number]:
+            fails.append(f"callout c{number} must contain exactly two badge texts '{number}' (found {group_badges})")
+        group_leads = [p for p in group.getElementsByTagName("polyline") if "lead" in p.getAttribute("class")]
+        if len(group_leads) != 1:
+            fails.append(f"callout c{number} contains {len(group_leads)} leaders (expected 1)")
+    if sorted(callout_numbers) != list(range(1, len(cgs) + 1)):
+        fails.append(f"callout numbers must be sequential 1..{len(cgs)} (found {sorted(callout_numbers)})")
+    # Badge numbers appear twice globally too, catching loose badges outside callout groups.
     badges = [t.firstChild.data.strip() for t in d.getElementsByTagName("text")
               if "badgeT" in t.getAttribute("class") and t.firstChild]
-    from collections import Counter
+    if len(badges) != len(cgs) * 2:
+        fails.append(f"{len(badges)} badge texts for {len(cgs)} callouts (expected {len(cgs) * 2})")
     for num, c in Counter(badges).items():
         if c != 2: fails.append(f"badge '{num}' appears {c}x (expected 2: on-region + gutter label)")
     # leaders: point count + crossings
@@ -66,7 +88,10 @@ def check(path):
     segs = []
     for p in leads:
         pts = [tuple(map(float, xy.split(","))) for xy in p.getAttribute("points").split()]
-        if len(pts) > 4: fails.append(f"a leader has {len(pts)} points > 4 (more than one bend)")
+        if len(pts) != 4:
+            fails.append(f"a leader has {len(pts)} points (expected exactly 4)")
+        elif not (pts[0][1] == pts[1][1] and pts[1][0] == pts[2][0] and pts[2][1] == pts[3][1]):
+            fails.append("a leader must follow horizontal → vertical → horizontal orthogonal routing")
         for i in range(len(pts)-1): segs.append((pts[i], pts[i+1]))
     for i in range(len(segs)):
         for j in range(i+1, len(segs)):

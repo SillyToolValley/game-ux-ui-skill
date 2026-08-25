@@ -1,0 +1,40 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Python ${{ matrix.python }} / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python: ["3.10", "3.13"]
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Install package
+        run: python -m pip install --disable-pip-version-check -e .
+      - name: Compile Python sources
+        run: python -m py_compile ui_ref_cli.py ui_ref_design.py
+      - name: Run unit and integration tests
+        run: python -m unittest discover -s tests -v
+      - name: Build wheel smoke test
+        run: python -m pip wheel --no-deps --wheel-dir wheelhouse .
+      - name: Install built wheel
+        run: python -c "import glob, subprocess, sys; wheels = glob.glob('wheelhouse/*.whl'); assert len(wheels) == 1, wheels; subprocess.check_call([sys.executable, '-m', 'pip', 'install', '--force-reinstall', '--no-deps', wheels[0]])"
+      - name: Installed CLI smoke test
+        working-directory: ${{ runner.temp }}
+        run: |
+          ui-ref --version
+          python -c "import pathlib, ui_ref_cli, ui_ref_design; paths = [pathlib.Path(ui_ref_cli.__file__), pathlib.Path(ui_ref_design.__file__)]; assert all('site-packages' in str(path) for path in paths), paths; assert ui_ref_cli.__version__ == '0.4.0'"

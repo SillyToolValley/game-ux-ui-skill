@@ -1,239 +1,286 @@
 # Game-UI-Reference-Cli
 
+![Version](https://img.shields.io/badge/version-0.4.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Core deps](https://img.shields.io/badge/core%20dependencies-0-brightgreen)
 
 [English](README.md) · [中文](README.zh.md) · [한국어](README.ko.md) · **日本語**
 
-<img src="examples/lucid-dawn/art-concepts/levelup-ui-art-concept.png" alt="ui-ref リファレンスを基に生成したレベルアップ UI アートコンセプト" width="900">
+根拠に基づくゲーム UX/UI リサーチ兼仕様コンパイラです。`ui-ref` はリファレンス根拠を収集・索引化し、レビュー済みの判断をバージョン管理可能な画面／コンポーネント契約に変換し、そのトレーサビリティとライフサイクルを検証します。同じ原本から、決定的なワイヤーフレーム、読みやすい仕様、クリック可能なプロトタイプ、エンジン引き渡し用スキャフォールドを生成します。
 
-<p align="center"><b>Concept art generated from UI references collected with this CLI</b></p>
+中核ワークフローに外部依存はありません。JavaScript レンダリングのリファレンスサイトでは Playwright を任意で使い、動画からフレームを抽出するときだけ FFmpeg が必要です。
 
-ゲーム UI に特化した、依存の軽い **UI リファレンス調査** CLI。ローカルに保管している UI リファレンス画像を
-インデックス化し、（任意で）公開 UI データベースからリファレンスページを収集 —— レンダリングし、HTML と
-画像メタデータをキャッシュし、要求に応じてサムネイルをダウンロード —— して UI/UX パターンを研究できる。
+> このツールは AI の推測を承認済みデザインには変えません。リバースエンジニアリング結果は必ず `draft` として取り込まれ、最終承認には名前を記録した人間のレビュアーによる明示的な確認が必要です。
 
-主要かつ構造化されたソースは **[Game UI Database](https://www.gameuidatabase.com)（gameuidatabase.com）**。
-他のいくつかの公開 UI/UX ギャラリーも汎用の画像収集モードで動作する（[対応サイト](#対応サイト)参照）。
+## v0.4.0 の概要
 
-意図的に控えめで礼儀正しく動作する:
+- **リファレンス根拠:** ローカルのスクリーンショットを索引化するか、明示的に列挙した公開ページだけを節度を守って収集します。各項目は出典パス／URL とハッシュ可能な来歴を保持します。
+- **正本契約:** プロジェクト、トークン、フロー、リファレンス、判断、承認、画面、再利用コンポーネントをバージョン付き JSON で管理します。
+- **品質ゲート:** ID、参照、バインディング、インタラクション、状態、アクセシビリティ、入力同等性、受け入れ基準、フロー、承認の鮮度を検証します。
+- **AI 向けワイヤーフレーム:** 小さな `.uiwire` DSL を記述し、グラフィックス依存なしで決定的な注釈付き SVG をレンダリングします。
+- **単一原本ビルド:** 契約をエンジン中立 Design IR、Markdown、HTML、レンダリング済みワイヤーフレームへコンパイルします。
+- **クリックレビュー:** 画面遷移、シナリオ、キーボードフォーカス、ゲームパッドのポーリングを備えた静的プロトタイプを生成します。
+- **エンジン引き渡し:** Unity UI Toolkit、Unity uGUI、Godot、Cocos 向けの明示的なスキャフォールドと機能／ハッシュ manifest を出力します。
+- **根拠限定リバースエンジニアリング:** 任意のマルチモーダルモデルに渡せるスクリーンショット／動画パケットを作り、その主張を検証してドラフトとしてのみ取り込みます。
 
-- まずローカルリファレンスをインデックス化し、
-- 外部 URL は **あなたが列挙したときだけ** 取得（クロールしない）、
-- アセットは **要求しない限り** ダウンロードしない、
-- ポライトネス遅延・実行ごとのページ上限・`robots.txt` チェックを内蔵。
+## 5 分ワークフロー
 
-> **ログイン必須サイトは対象外。** ギャラリーにアカウントが必要なサイト（例: Mobbin のアプリ画面）は本ツールでは
-> 収集できず、意図的に非対応。これは個人研究の補助ツールであり、汎用スクレイパーでも、他者のアセットを
-> 再配布するためのものでもない。各サイトの規約と `robots.txt` を尊重すること。
+ゲームプロジェクトのルートで次を実行します。`--project-root` や `--design-root` などのグローバルオプションはコマンドより前に置きます。
 
-## 何を見つけるか —— UI リファレンス
+```bash
+# 1. 軽量なリサーチワークスペースを作る。
+ui-ref init --project-name "My Game"
 
-中核の仕事は、実際のゲーム UI スクリーンショットを集めてパターンを研究できるようにすること。`ui-ref` に
-リファレンスページを指定すると、レンダリングし、メタデータをキャッシュし、サムネイルをダウンロードする
-—— それを **画面タイプ別** に整理する。以下はサンプル用に `ui-ref collect --browser --site interfaceingame`
-で作品別ページから収集したリファレンス:
+# 2. references/ui/<collection>/<category>/ に画像を置き、索引化する。
+ui-ref scan-local
 
-![ui-ref が画面タイプ別に収集した UI リファレンス](docs/captures/references-found.png)
+# 3. ui_design/ を作る。現在のローカル manifest は自動で取り込まれる。
+ui-ref spec init --project-name "My Game" --platform pc --locale ja
 
-各実行は、ダウンロードしたサムネイルがタイトル・サイズ・**ソースリンク** と共にインライン表示される
-閲覧可能な **コンタクトシート**（`ui_research/manifests/contact_sheet_*.html`）と、**マニフェスト**
-（`scan-local` → `local_ui_refs_manifest.{json,md}`）も書き出す。こうして集めたリファレンスが下の
-ワイヤーフレームの **出典** であり、各デザイン画面は借用した具体的なショットを明記している。
+# 4. 画面ドラフトとスターターワイヤーフレームを作る。
+ui-ref spec add-screen "Main Menu" --id main-menu --wireframe
 
-## 成果物サンプル
+# ui_design/screens/main-menu.json と ui_design/wireframes/main-menu.uiwire を編集する。
+ui-ref spec validate --strict
 
-完全な実例が **[`examples/lucid-dawn/`](examples/lucid-dawn/)** にある —— survivor-like/ローグライト
-（*Lucid Dawn: Dream Survivor*）の完全な UX/UI デザインドキュメントで、`ui-ref` で収集したリファレンスをもとに
-`game-ux-ui-design` スキルが生成した。**12 画面**（ゲーム外+ゲーム内）・**注釈付きワイヤーフレーム 13 点**、英語・中国語・韓国語・日本語で提供。
+# 5. IR + Markdown/HTML + SVG ワイヤーフレームをコンパイルする。
+ui-ref spec build
 
-**注釈付きワイヤーフレーム** —— すべての UI 要素に番号、領域を矩形/円で、引き出し線をフレームの *外* のガターのラベルへ:
+# 6. クリック可能な静的プロトタイプを作る。
+ui-ref prototype build
 
-<img src="docs/captures/hud.png" alt="ゲーム内 HUD の注釈付きワイヤーフレーム" width="900">
+# 7. エンジン引き渡し用スキャフォールドを生成する。
+ui-ref export unity-uitoolkit
+```
 
-### デザインドキュメントはどこまで書かれている？
+ブラウザーで `ui_design/build/design-spec.html` と `ui_design/build/prototype/index.html` を開きます。生成コマンドは、空でないカスタム出力ディレクトリを `--force` なしでは置き換えません。意図して更新するときだけ `--force` を使ってください。
 
-各ワイヤーフレームの下に、**12 画面すべて** が次を備える:
+後でリファレンスが変わった場合は次を実行します。
 
-- **目的**（進入 / 退出 / 入力コンテキスト / 優先度）
-- **参考** —— 借用した実際のゲーム UI を「何を / なぜ」のメモ付きで本文にインライン埋め込み
-- **ワイヤーフレーム**（SVG）+ **凡例** —— 要素ごとに: 位置 · 表示条件 · 挙動/状態 · **データバインディング** · **測定可能な判定基準** · 平易な UX 意図 · アクセシビリティ
-- **状態マトリクス** —— default / hover / pressed / selected / disabled-locked / loading / empty / error
-- **入力パリティ** —— マウス · キーボード · ゲームパッド · スクリーンリーダー
-- **データバインディング** —— すべてのフィールド/イベントを **GDD と照合検証**；GDD に無いものは「GDD への追加が必要」と明示（勝手に捏造しない）
-- **ナビゲーション · エッジケース · アクセシビリティ · UX 設計意図（平易な言葉）· 未解決の質問 · 受入チェックリスト**
+```bash
+ui-ref scan-local
+ui-ref spec import-references
+ui-ref spec check
+```
 
-さらに付随ドキュメント: **デザイントークン**（色 hex / 書体 / モーション / USS 変数）、**数値・意思決定トラッカー**
-（各数値を GDD 確定 / 標準 / 推定 で分類）、そして **エンジンバインディング（UI Toolkit × DOTS）** ·
-**ユーザビリティテスト計画** の付録。
+既存のリファレンス ID と人間が書いたメモは保持され、消えたソースファイルは黙って削除されず、欠落として記録されます。
 
-<details>
-<summary><b>実際の抜粋を見る —— ゲーム内 HUD の凡例 + 状態マトリクス</b></summary>
+## 正本ソースと生成物
 
-凡例（9 行のうち抜粋）:
+`ui_design/` をデザインのソースコードとして扱ってください。
 
-| # | コード | 要素 | 位置 | データバインディング | 判定基準 | アクセシビリティ |
-| --- | --- | --- | --- | --- | --- | --- |
-| 2 | A2 | アラーム時計 | 左上 | `run.timer` 0–1200s (§4-1), `AlarmReached` (§12-1) | いつでも残り時間を ≤1s で読める | 時計+数字、最後の 60 秒は 音+明るさ |
-| 4 | A4 | HP / シールド | 左上 | `Character.hp` (§12-2), シールド (§12-2 追加) | 被弾 ≤100ms 反映；低 HP は 色+点滅+枠 | 色+点滅+枠+数値 |
-| 7 | A7 | 浄化バー | 下部中央 | 浄化 (§4-2), `PurgeGained` · `BossThresholdReached` (§12-1) | 獲得 ≤200ms 反映；閾値 → ボス警告 | 充填+数値+ソースのトースト |
+| パス | 役割 | コミット？ |
+| --- | --- | --- |
+| `ui_design/project.json` | プロジェクトメタデータ、パス、品質ゲート | はい |
+| `ui_design/tokens.json`, `flows.json` | 共有デザイントークンとナビゲーションフロー | はい |
+| `ui_design/references.json` | 根拠カタログと出典の権利／メモ | はい |
+| `ui_design/decisions.json`, `approvals.json` | 判断とハッシュに結び付いたレビュー台帳 | はい |
+| `ui_design/screens/*.json` | 正本画面契約 | はい |
+| `ui_design/components/*.json` | 正本の再利用コンポーネント契約 | はい |
+| `ui_design/wireframes/*.uiwire` | 正本テキストワイヤーフレーム | はい |
+| `ui_design/schemas/` | ワークスペースの契約スキーマ | はい |
+| `ui_design/build/` | 生成 IR、レポート、文書、SVG、プロトタイプ、export | いいえ。再ビルドする |
+| `ui_design/analysis/` | 一時フレーム、パケット、プロンプト、contact sheet | いいえ。レビュー済み結果だけを正本契約へ取り込む |
 
-状態マトリクス（抜粋）:
+リポジトリの `.gitignore` は `ui_design/build/` と `ui_design/analysis/` だけを無視します。正本デザインファイルは**無視しません**。
 
-| 要素 | default | pressed/active | disabled/locked | error |
-| --- | --- | --- | --- | --- |
-| スキル (A8) | リング充填 | 押下 + SFX、リング 0 | グレー + 錠 + 「未解放」 | 「CD エラー —— 既定値」 |
-| 必殺 (A9) | チャージ充填 | 発動カットシーン | <100 なら淡色 + 残量 | 直前値 + 警告枠 |
+`ui-ref spec check` は契約検証、承認チェック、ワイヤーフレーム lint、生成物のドリフト検出をまとめて行います。生成された HTML、SVG、エンジンファイル、Design IR ではなく、正本 JSON／`.uiwire` を編集してください。
 
-</details>
+## ライフサイクルと承認の安全性
 
-以下は **実際にレンダリングしたデザインドキュメントのページ**（ゲーム内 HUD 画面 —— 参考スクショ、注釈付きワイヤー
-フレーム、10 列の凡例表すべて、納品そのまま）:
+画面とコンポーネントには明示的なライフサイクルがあります。
 
-![デザインドキュメントページのサンプル —— ゲーム内 HUD](docs/captures/design-page-hud.png)
+```text
+draft → reviewed → approved → deprecated
+  ↑        │          │          │
+  └────────┴──────────┴──────────┘  （改訂が必要なら draft に戻す）
+```
 
-**その他の画面** —— 全点は [`examples/lucid-dawn/wireframes/`](examples/lucid-dawn/wireframes/):
+昇格は単なる文字列変更ではなく、品質ゲートを通過する必要があります。
 
-<img src="docs/captures/levelup.png" alt="レベルアップ/アイテム選択" width="440"> <img src="docs/captures/results.png" alt="リザルト画面" width="440">
-<img src="docs/captures/skilltree.png" alt="ボス報酬スキルツリー" width="440"> <img src="docs/captures/character-select.png" alt="キャラクター選択" width="440">
+```bash
+ui-ref spec promote screen main-menu \
+  --to reviewed --by "UX reviewer" --note "状態、入力、受け入れ基準を確認"
 
-デザインドキュメントの全文を読む: [英語](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.md) ·
-[中国語](examples/lucid-dawn/lucid_dawn_ui_ux_design.zh.md) ·
-[韓国語](examples/lucid-dawn/lucid_dawn_ui_ux_design.ko.md) ·
-[日本語](examples/lucid-dawn/lucid_dawn_ui_ux_design.ja.md) ·
-[PDF](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.pdf)。
+ui-ref spec promote screen main-menu \
+  --to approved --by "Design lead" --note "実装向けに承認" \
+  --human-confirmed
+```
 
-## インストール
+- `reviewed` と `approved` はレビュー品質の完全性チェックを通過しなければなりません。
+- 最終 `approved` には `--human-confirmed` が必要です。AI や import が最終承認を与えることはできません。
+- 承認台帳には成果物と依存関係の両方のハッシュが保存されます。トークン、フロー、リファレンス、コンポーネントを変更すると承認が古くなり、再レビューまで検証は失敗します。
+- 検証時にはローカル根拠の存在と SHA-256、コンポーネント参照、`project.json` で有効な全品質ゲートを再確認します。作成/import の `--force` が置換できるのは未レビューのドラフトだけです。
+- `ui-ref spec trace screen main-menu` は根拠、バインディング、インタラクション、承認、依存関係のトレーサビリティを表示します。
+- `ui-ref prototype build --release` と `ui-ref export <engine> --release` は未承認または無効なリリース入力を拒否します。
+
+承認フラグはレビューの代わりではありません。名前を記録する担当者がその正確なリビジョンを確認してから `--human-confirmed` を使ってください。
+
+## スクリーンショットと動画のリバースエンジニアリング
+
+分析ワークフローはプロバイダー非依存であり、それ自体でメディアをアップロードしたりモデルを呼び出したりは**しません**。
+
+```bash
+# スクリーンショット、ディレクトリ、または混在入力
+ui-ref analyze media ./captures/menu.png ./captures/hud/
+
+# 動画フレーム抽出には PATH 上の ffmpeg が必要
+ui-ref analyze media ./captures/gameplay.mp4 --interval 2 --frame-limit 120
+```
+
+`ui_design/analysis/<timestamp>/` の実行ディレクトリには次が生成されます。
+
+- `analysis-packet.json` — 根拠 ID、パス、SHA-256 ハッシュ、寸法、タイムスタンプ
+- `analysis-prompt.md` — 根拠ルールと必須の結果形式
+- `analysis-result.schema.json` — 結果契約
+- `contact-sheet.html` — ローカルレビューシート
+- 動画を入力した場合は抽出フレーム
+
+完全に同じファイル／フレームは SHA-256 で除去します。選んだマルチモーダルプロバイダーへパケット、プロンプト、引用画像を渡し、JSON 応答を保存してから取り込みます。
+
+```bash
+ui-ref analyze import result.json \
+  --packet ui_design/analysis/<timestamp>/analysis-packet.json
+```
+
+import は根拠 ID、`observed` / `inferred` / `unknown` 分類、信頼度を検証します。プロバイダー／モデル／プロンプトの来歴を記録し、**ドラフト専用**の画面契約を作成または更新します。正確なパケットと根拠ハッシュは衝突耐性のあるリファレンス ID に結び付けられ、リファレンス・契約・ワイヤーフレームはすべて一括で反映されるか、まったく反映されません。`--force` を付けても、レビュー済み・承認済み・非推奨、またはレビュー履歴のあるドラフトは保持されます。ポーズ規則、初期フォーカス、正式なイベント、失敗処理のような見えない実行時挙動は、別の根拠で確立されない限り `unknown` のままにします。
+
+## ワイヤーフレームとビルド出力
+
+行指向の `.uiwire` 原本を作成、検査、レンダリングします。
+
+```bash
+ui-ref wireframe new main-menu
+ui-ref wireframe lint ui_design/wireframes/main-menu.uiwire
+ui-ref wireframe render ui_design/wireframes/main-menu.uiwire
+```
+
+原本はバージョンと canvas で始まり、安定した要素 ID と key/value の幾何情報が続きます。ラベルと callout は SVG 出力前にエスケープされます。
+
+```text
+uiwire 1
+canvas 1920 1080
+button A1 x=720 y=420 w=480 h=96 label="Start"
+callout A1 side=right text="Primary action"
+```
+
+`ui-ref spec compile` はエンジン中立の `design.ir.json` だけを書き出します。`ui-ref spec build` はさらに `design-spec.md`、読みやすい `design-spec.html`、注釈付き SVG ワイヤーフレーム、ソース／出力ハッシュ入り `build-manifest.json` を生成します。
+
+## プロトタイプとエンジン引き渡し
+
+```bash
+ui-ref prototype build
+ui-ref export unity-uitoolkit
+ui-ref export unity-ugui
+ui-ref export godot
+ui-ref export cocos
+```
+
+`--screen <id>` で 1 画面だけを出力し、`--release` で最新の人間承認を必須にできます。記述済みの `flows.json` はプロトタイプの開始画面と遷移を駆動し、同じアクションに競合する遷移先があると検証に失敗します。各エンジンディレクトリには `engine-ir.json`、`capability-report.json`、`export-manifest.json` が入り、毎回生成セット全体を原子的に置換するため削除済み画面は残りません。
+
+これらは**実装引き渡し用スキャフォールドであり、本番投入可能なエンジンプロジェクトではありません**。
+
+| 対象 | 生成内容 | 手動／プロジェクト固有の作業 |
+| --- | --- | --- |
+| Unity UI Toolkit | 画面別 UXML、`tokens.uss`、バインディング／イベント JSON | 実行時バインディング、プロジェクト資産、レスポンシブ調整、音声／ハプティクス |
+| Unity uGUI | RectTransform／コンポーネント引き渡し JSON | Unity 側 importer と実際の prefab シリアライズ |
+| Godot | 画面別 `Control` `.tscn`、バインディング／イベント JSON | Theme リソース、資産、signal、GDScript |
+| Cocos | ノード／コンポーネント／UITransform 引き渡し JSON | バージョン固有 prefab シリアライズとエディター adapter |
+
+必ず `capability-report.json` を読んでください。契約データが保持される範囲と、手動／損失を伴う作業との境界を明示します。
+
+## インストールとテスト
 
 ```bash
 git clone https://github.com/SillyToolValley/Game-UI-Reference-Cli
 cd Game-UI-Reference-Cli
-pip install -e .
+python -m pip install -e .
+ui-ref --version
 ```
 
-任意のブラウザ対応（JavaScript レンダリングのサイト —— つまり大半 —— に必要）:
+中核コマンドは Python 3.10+ の標準ライブラリだけを使います。JavaScript レンダリングのリファレンスサイトを使う場合:
 
 ```bash
-pip install -e ".[browser]"
-playwright install chromium     # 一度だけ: ヘッドレスブラウザをダウンロード
+python -m pip install -e ".[browser]"
+playwright install chromium
 ```
 
-| | `scan-local` | `collect`（静的） | `collect --browser` |
-| --- | --- | --- | --- |
-| Python 標準ライブラリのみ | ✅ | ✅ | — |
-| `playwright` + ブラウザが必要 | — | — | ✅ |
-| サーバーレンダリングのページで動作 | n/a | ✅ | ✅ |
-| JS レンダリングのリファレンスサイトで動作 | n/a | ✗（0 件） | ✅ |
+動画分析には FFmpeg を別途インストールし、`ffmpeg` が `PATH` 上にあることを確認してください。スクリーンショット分析には不要です。
 
-ブラウザ経路は **Playwright** を直接使う（現実的なデスクトップ UA+ビューポート、遅延読み込み画像のための
-任意の自動スクロール）。ステルス/アンチボット層は同梱しない —— 対応する公開サイトは通常のヘッドレス
-ブラウザにコンテンツを提供し、内蔵のポライトネスが実行を行儀よく保つ。
-
-## クイックスタート
-
-プロジェクトルートで:
+標準ライブラリで回帰テストを実行します。
 
 ```bash
-ui-ref init --project-name "My Project"
-# references/ui/<collection>/<category>/*.png|jpg|... にリファレンス画像を置く
+python -m unittest discover -s tests -v
+```
+
+## リファレンス収集（従来ワークフロー、引き続き対応）
+
+従来の `init`、`scan-local`、`collect` ワークフローはそのまま互換です。収集は意図的に保守的です。
+
+- まずローカルリファレンスを索引化します。
+- 利用者が**明示的に列挙した**外部 URL だけを取得し、クロールしません。
+- 要求しない限り資産をダウンロードしません。
+- リクエスト間隔、実行ごとのページ上限、`robots.txt` チェック、公開ネットワーク URL チェック、応答サイズ制限を内蔵します。
+
+ログインが必要なギャラリーは対象外です。これは個人リサーチ補助であり、汎用スクレイパーでも他者の資産を再配布する手段でもありません。各サイトの規約、著作権、`robots.txt` を守ってください。
+
+### ローカルリファレンスの索引化
+
+ファイルを `references/ui/<collection>/<category>/` に置き、実行します。
+
+```bash
 ui-ref scan-local
 ```
 
-## 同梱スキル: `game-ux-ui-design`
+PNG/GIF/JPEG/WebP のバイト列から画像寸法を読み、フォルダーパスから大まかなタグを推定して、次を書き出します。
 
-このリポジトリは、ここで集めたリファレンスを **優れたゲーム UX/UI デザインドキュメント** に変える **Claude Code スキル** を
-同梱する —— survivor-like / 弾幕天国 / ローグライト向けに作られている。場所:
-[`.claude/skills/game-ux-ui-design/`](.claude/skills/game-ux-ui-design/)。
+```text
+ui_research/manifests/local_ui_refs_manifest.json
+ui_research/manifests/local_ui_refs_manifest.md
+```
 
-GDD や機能ブリーフを与えると、次を備えたデザインドキュメントを生成する:
+### 明示的に列挙したページの収集
 
-- **リファレンス画像を各画面の本文にインライン埋め込み**（`ui-ref` で収集）;
-- **そのリファレンスから導いたワイヤーフレーム** —— **すべての UI 要素に番号**、領域を矩形/円で、
-  **フレーム外へ伸ばす引き出し線** で説明（SVG 注釈引き出しキット ——
-  [`templates/wireframe-kit.svg`](.claude/skills/game-ux-ui-design/templates/wireframe-kit.svg)）;
-- 各画面に **凡例 / 状態マトリクス / 入力パリティ / データバインディング** 表;
-- 画面ごとに平易な言葉の **「UX 設計意図」**（ゲーム UX ヒューリスティクスで考えるが、本文に用語は出さない）;
-- **出荷級（任意）ステージ**: デザイントークン · 数値/意思決定トラッカー · エンジンバインディング · ユーザビリティテスト計画;
-- Markdown ソースを **ワイド 16:9 横向き PDF**（`build_pdf.py` + `design-pdf.css`）にレンダリングし、密な表も共有しやすく;
-- 選定したワイヤーフレームを **UI アートコンセプト mockup** にして、ムード・素材言語・カード/HUD 処理を確認できる。
-
-完全な生成サンプルは **[`examples/lucid-dawn/`](examples/lucid-dawn/)**（12 画面、ワイヤーフレーム 13 点、トークン、
-トラッカー、英/中/韓/日）と上の[成果物サンプル](#成果物サンプル)のキャプチャを参照。
-
-自分のゲームプロジェクトで使うには、スキルフォルダをそのプロジェクトの `.claude/skills/`（または全プロジェクト
-共通なら `~/.claude/skills/`）にコピーし、Claude Code に「〈画面〉の UX/UI デザインドキュメントを作って」と頼む。
-
-## コマンド
-
-### `scan-local` —— ローカルリファレンスをインデックス化
-
-`references/ui/<collection>/<category>/<file>` を走査し、ファイルバイトから画像サイズを読み取り
-（PNG/GIF/JPEG、Pillow 不要）、フォルダパスから粗いタグを推論して `ui_research/manifests/` に
-JSON + Markdown マニフェストを書き出す。
-
-### `collect` —— 明示的に列挙したページを取得
-
-`ui_research/urls.txt` にリファレンス URL を 1 行ずつ入れて:
+`ui_research/urls.txt` に 1 行 1 URL を置くか、`--url` を繰り返します。
 
 ```bash
-# JS レンダリングのサイト → ブラウザを使う。URL のドメインごとにモードが自動判定される。
+# JS レンダリングサイトでは任意のブラウザーパスを使う。
 ui-ref collect --browser
 
-# ページごとに画像を数枚 + 遅延読み込みのためのスクロール
-ui-ref collect --browser --scroll 6 --download-gallery-assets --download-asset-limit 2
+# 少数の画像をダウンロードし、遅延読込コンテンツのためにスクロールする。
+ui-ref collect --browser --scroll 6 \
+  --download-gallery-assets --download-asset-limit 2
 
-# 未知のサイトにモード/ギャラリークラスを強制
+# 未知のサイトでは抽出方法を強制する。
 ui-ref collect --browser --mode images
 ui-ref collect --browser --gallery-class "thumb-card"
 ```
 
-1 つの `urls.txt` に複数の対応サイトの URL を混在させてよい —— 各 URL が自分のプリセットを自動選択する。
+各実行は `ui_research/manifests/` に `collected_pages_<run_id>.json` と、ブラウザーで見られる `contact_sheet_<run_id>.html` を書きます。主なオプションは `--site`、`--mode`、`--gallery-class`、`--scroll`、`--max-pages`、`--delay`、`--timeout`、`--keep-*`、`--download-full-images`、`--no-headless` です。
 
-各実行は `ui_research/manifests/` に次を書き出す:
+### 対応サイトとモード
 
-- `collected_pages_<run_id>.json` —— ページごとの状態、robots メモ、ページタイトル、リンク/アセット/ギャラリーメタ;
-- `contact_sheet_<run_id>.html` —— **閲覧可能** なシート: ダウンロード済みサムネイルがインライン表示され、抽出/収集した
-  すべての画像がタイトル/サイズ・ソースリンクと共に列挙される。ブラウザで開いて収集物を確認する。
-
-> **サイトの実情（経験則）:** Game UI Database は SPA + Cloudflare のため、ヘッドレス収集が不安定 ——
-> `index.php?&scrn=N` の画面種別フィルタは直接ロードでは効かず（どの scrn でも同じデフォルトギャラリー）、
-> `gameData.php?id=N` の作品別ページもタイムアウトしうる。**interfaceingame.com の作品別ページ**
-> （`/games/<slug>/`）が最も安定（1 作品あたり実スクリーンショット 30 枚以上）。ゲーム id/slug の取得は
-> サイト内検索（SPA）よりウェブ検索が速い。直系ジャンル（Vampire Survivors 系など）が収集サイトに無ければ、
-> 近接作品 + そのパターンを文章で補う。
-
-便利なフラグ: `--site`、`--mode`、`--gallery-class`、`--scroll`、`--max-pages`、`--delay`、`--timeout`、
-`--user-agent`、`--keep-*`、`--download-full-images`、`--download-title-contains`、`--no-headless`。
-
-## 対応サイト
-
-2 つの抽出モード:
-
-- **`gallery`** —— 構造化: ギャラリーアンカー（アンカークラス + `data-title`/`data-imageid`/`data-thumb`）を読む。
-  項目ごとのメタデータが豊富。
-- **`images`** —— 汎用: レンダリング後のページの `<img>`/`srcset` 画像を収集（アイコン/アバター/ロゴ等の
-  明らかな装飾はフィルタ）。大半のサイトで動作。
-
-モード/プリセットは各 URL のドメインから自動判定され、`--site`/`--mode`/`--gallery-class` で上書き可能。
+- `gallery`: 構造化された gallery anchor とメタデータを読みます。
+- `images`: 明らかなページ装飾を除外しながら、レンダリング済み `<img>`／`srcset` 候補を収集します。
 
 | サイトキー | ドメイン | モード | 備考 |
 | --- | --- | --- | --- |
-| `gameuidatabase` | gameuidatabase.com | gallery | Game UI Database —— 構造化ギャラリー（`--browser` 必須；SPA+CF 注意）。 |
-| `interfaceingame` | interfaceingame.com | images | Interface In Game —— ゲーム UI スクショ（作品別ページ推奨）。 |
+| `gameuidatabase` | gameuidatabase.com | gallery | 構造化 Game UI Database ギャラリー。`--browser` を使用。 |
+| `interfaceingame` | interfaceingame.com | images | ゲーム UI スクリーンショット。 |
 | `screenlane` | screenlane.com | images | モバイル UI/UX フロー。 |
-| `collectui` | collectui.com | images | デイリー UI インスピレーション。 |
+| `collectui` | collectui.com | images | 日々の UI インスピレーション。 |
 | `landbook` | land-book.com | images | ランディングページギャラリー。 |
-| `lapaninja` | lapa.ninja | images | ランディングページ事例。 |
-| `refero` | refero.design | images | Web/iOS UI インスピレーション。 |
-| `dribbble` | dribbble.com | images | デザインショット（公開ページ）。 |
-| `behance` | behance.net | images | クリエイティブショーケース（公開ページ）。 |
+| `lapaninja` | lapa.ninja | images | ランディングページ例。 |
+| `refero` | refero.design | images | Web/iOS UI の参考。 |
+| `dribbble` | dribbble.com | images | 公開デザインショット。 |
+| `behance` | behance.net | images | 公開クリエイティブショーケース。 |
 
-プリセットの無い **その他** のサイトは `images` モード（汎用収集）が既定。ログインが必要なギャラリーは非対応。
+未知の公開サイトは既定で `images` を使います。サイトを追加するには、`ui_ref_cli.py` の `SITE_PRESETS` に `match`、`mode`、任意の `gallery_class`、`notes` を追加します。構造化メタデータの属性が異なる場合だけ `LinkExtractor` を拡張してください。
 
-## 設定の探索
+### 設定探索とエチケット
 
-`--config` なしの場合、CLI は `ui_ref_config.json` を次の順で探す:
+`--config` がなければ次の順で探索します。
 
 ```text
 ui_ref_config.json
@@ -241,13 +288,53 @@ ui_research/ui_ref_config.json
 docs/ui_research/ui_ref_config.json
 ```
 
-別の場所から特定のプロジェクトフォルダを対象に実行するには `--project-root` を使う。
+グローバル `--project-root` で別プロジェクトを指定し、`--design-root` で `ui_design` を上書きできます。収集は小さく、ゆっくり行ってください。既定値はリクエスト間 8 秒、1 実行 20 ページです。収集物は引用付きのリサーチ文脈として扱い、資産パックや学習コーパスとして扱わないでください。
 
-## エチケット
+## DOCX/PDF と詳細デザイン文書のための同梱スキル
 
-実行は小さく・ゆっくり（既定は 8 秒遅延・実行ごと 20 ページ）。収集したページは引用/参照のコンテキストとして
-扱う —— 再配布用のアセットパックでも、学習データでもない。
+v0.4.0 の中核ビルドは、意図的に JSON Design IR、Markdown、HTML、SVG、静的プロトタイプファイルを生成します。DOCX や PDF は直接生成**しません**。
+
+リポジトリの checkout に含まれる [`game-ux-ui-design` コンパニオンスキル](.claude/skills/game-ux-ui-design/) は、GDD バインディング、画面別の根拠説明、密度の高い凡例／状態表、デザイントークン、判断追跡、アートコンセプト brief、文書レンダリングを含む長文デザイン文書ワークフローを追加します。テンプレートには [`build_docx.py`](.claude/skills/game-ux-ui-design/templates/build_docx.py) と [`build_pdf.py`](.claude/skills/game-ux-ui-design/templates/build_pdf.py) があります。関係者向け DOCX/PDF が必要な場合はこのコンパニオンを使い、機械可読な原本は正本 `ui_design` 契約として維持してください。
+
+Python wheel がインストールするのは `ui-ref` CLI のみで、このコンパニオンスキルのインストールや登録は行いません。コンパニオンワークフローが必要な場合は、リポジトリを clone/download するか、`.claude/skills/game-ux-ui-design/` を使用中のアシスタントが対応するスキル配置先へコピーしてください。
+
+## 成果物サンプル
+
+完全なコンパニオンスキル例は [`examples/lucid-dawn/`](examples/lucid-dawn/) にあります。文書化された 12 画面、13 個の注釈付きワイヤーフレーム、トークン、判断、引用、英語／中国語／韓国語／日本語のデザイン文書を含みます。
+
+![画面タイプ別に集めた UI リファレンス](docs/captures/references-found.png)
+
+<img src="docs/captures/hud.png" alt="注釈付きゲーム内 HUD ワイヤーフレーム" width="900">
+
+<img src="docs/captures/levelup.png" alt="レベルアップ選択" width="440"> <img src="docs/captures/results.png" alt="リザルト画面" width="440">
+
+完全な例: [英語](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.md) · [中国語](examples/lucid-dawn/lucid_dawn_ui_ux_design.zh.md) · [韓国語](examples/lucid-dawn/lucid_dawn_ui_ux_design.ko.md) · [日本語](examples/lucid-dawn/lucid_dawn_ui_ux_design.ja.md) · [PDF](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.pdf)。
+
+## コマンドリファレンス
+
+| コマンド | 用途 |
+| --- | --- |
+| `ui-ref init` | リファレンスリサーチと設定を初期化 |
+| `ui-ref scan-local` | ローカルリファレンスメディアを索引化 |
+| `ui-ref collect` | 明示的に列挙した公開リファレンスページを収集 |
+| `ui-ref spec init` | 正本契約ワークスペースを初期化。`design` は `spec` の別名 |
+| `ui-ref spec add-screen` / `add-component` | 契約ドラフトを作成 |
+| `ui-ref spec import-references` | 最新ローカル manifest を根拠カタログへ同期 |
+| `ui-ref spec validate [--strict]` | 構造、意味、ライフサイクルゲート、承認を検証 |
+| `ui-ref spec check [--strict]` | 検証 + ワイヤーフレーム lint + 生成物ドリフト検出 |
+| `ui-ref spec compile` | エンジン中立 Design IR をビルド |
+| `ui-ref spec build` | IR、Markdown、HTML、注釈 SVG、ハッシュ manifest をビルド |
+| `ui-ref spec promote` | ゲート付きライフサイクル遷移と台帳記録 |
+| `ui-ref spec trace` | 根拠と依存関係のトレーサビリティを報告 |
+| `ui-ref wireframe new/lint/render` | `.uiwire` を作成、検証、レンダリング |
+| `ui-ref prototype build [--release]` | クリック可能な静的プロトタイプをビルド |
+| `ui-ref analyze media/import` | 根拠パケットを準備し、検証済み AI 結果をドラフトとして import |
+| `ui-ref export <engine> [--screen ID] [--release]` | エンジン引き渡し用スキャフォールドを生成 |
+
+すべてのオプションは `ui-ref <command> --help` で確認できます。
 
 ## ライセンス
 
-MIT —— [LICENSE](LICENSE) を参照。
+MIT — [LICENSE](LICENSE) を参照してください。
+
+プロジェクト文書: [変更履歴](CHANGELOG.md) · [コントリビューション](CONTRIBUTING.md) · [セキュリティポリシー](SECURITY.md)

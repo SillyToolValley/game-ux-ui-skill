@@ -1,8 +1,22 @@
-# 엔진 바인딩 — 데이터 바인딩을 실제 엔진 현실에 묶기 (선택 부록)
+# EXPORT/VERIFY — 엔진 바인딩을 실제 런타임에 묶기
 
-> 디자인 문서 §5의 데이터 바인딩("event-driven, 폴링 금지")을 **선택 엔진에서 무GC·이벤트 기반**으로 구현하는
-> 핸드오프 가이드(Process 10). UX 디자인 문서을 엔진에 묶는 다리이며, 최종 구현은 TDD가 결정.
+> 구조화 계약의 데이터 바인딩을 **선택 엔진에서 무GC·이벤트 기반**으로 구현하는
+> 핸드오프 가이드. UX 계약과 런타임을 잇는 다리이며, 최종 구현은 TDD와 프로파일링이 결정.
 > 엔진이 GDD/브리프에 명시돼 있으면 해당 절만, 아니면 일반 원칙만.
+
+CLI exporter는 검증된 공통 Design IR에서 다음을 생성한다.
+
+```bash
+ui-ref export unity-uitoolkit [--screen <id>] [--release]
+ui-ref export unity-ugui      [--screen <id>] [--release]
+ui-ref export godot           [--screen <id>] [--release]
+ui-ref export cocos           [--screen <id>] [--release]
+```
+
+UI Toolkit은 UXML/USS/바인딩 JSON, Godot은 Control 기반 `.tscn`/바인딩 JSON을 만든다.
+uGUI와 Cocos는 안전하게 생성할 수 있는 구조화 핸드오프를 만든다. 어느 출력도 완성 런타임을
+뜻하지 않는다. `capability-report.json`의 `manual_or_lossy` 항목과 `export-manifest.json`의
+입출력 해시를 반드시 검토한다. `--release`는 현재 사람 승인이 유효한 화면만 허용한다.
 
 ## 공통 원칙 (모든 엔진)
 - **단일 출처**: 런타임 상태(타이머/HP/자원/보스…)는 시뮬이 보유, UI는 읽기만.
@@ -20,9 +34,15 @@
 ## Unreal — UMG (+ Mass/ECS면)
 - `ViewModel`(MVVM 플러그인) 또는 이벤트 디스패처로 변경 푸시(틱 바인딩 지양). 대량 표시는 UMG 밖(Niagara/인스턴싱).
 
+현재 CLI는 Unreal `.uasset`을 생성한다고 약속하지 않는다. Unreal 대상은 이 원칙과 공통
+engine IR을 근거로 별도 UMG/MVVM 어댑터를 설계해야 한다.
+
 ## 체크리스트
 - [ ] 고밀도 상황에서 HUD 갱신 프레임당 할당 0 / 리플로 최소.
 - [ ] 값 변경 시에만 갱신(프로파일 확인).
 - [ ] 대량 월드 텍스트가 UI 프레임워크 밖.
 - [ ] 모달/보상 동안 시뮬 정지 동기.
 - [ ] 패드 포커스 내비게이션 전 화면 동작.
+- [ ] capability report의 `manual_or_lossy` 항목이 담당자와 이슈에 연결됨.
+- [ ] export manifest의 계약 해시가 리뷰한 revision과 일치.
+- [ ] 실제 엔진 빌드에서 현지화, 세이프 영역, 접근성 모드, 고밀도 가독성을 재검증.

@@ -4,12 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "ui-ref-cli"
-version = "0.3.0"
-description = "Local UI reference research CLI: index local UI reference images and politely collect reference pages from UI databases (Game UI Database and more)."
+version = "0.4.0"
+description = "Evidence-backed game UX/UI research and specification compiler: references, contracts, wireframes, prototypes, and engine handoff."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-keywords = ["ui", "ux", "reference", "design", "research", "scraping"]
+keywords = ["game-ui", "ui", "ux", "reference", "design", "specification", "wireframe", "prototype"]
 dependencies = []
 
 [project.optional-dependencies]
@@ -23,4 +23,4 @@ Repository = "https://github.com/SillyToolValley/Game-UI-Reference-Cli"
 ui-ref = "ui_ref_cli:main"
 
 [tool.setuptools]
-py-modules = ["ui_ref_cli"]
+py-modules = ["ui_ref_cli", "ui_ref_design"]

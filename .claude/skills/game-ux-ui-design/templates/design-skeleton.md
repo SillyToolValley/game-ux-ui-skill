@@ -1,7 +1,8 @@
 # {게임명} UI/UX 디자인 문서 — {기능 / 화면군}
 
-> 복사해서 채우는 문서 스켈레톤. `{...}`를 GDD 근거로 채운다. 와이어프레임은 `wireframes/*.svg`로
-> 분리, 레퍼런스 이미지는 `references/ui/...`에 **별도 파일 링크**로 첨부(임베드 금지).
+> CLI를 쓸 수 없을 때 사용하는 수동 폴백 스켈레톤. 정상 흐름에서는 `ui_design/*.json`이
+> 유일한 원본이고 `ui-ref spec build`가 이 문서 뷰를 생성한다. 와이어프레임과 레퍼런스 이미지는
+> 별도 파일로 보관하되, 본문에서는 상대 경로로 인라인 표시한다.
 > 작성 규칙·근거: `references/design-structure.md`, `references/ux-heuristics.md`.
 
 ---
@@ -13,7 +14,7 @@
 | 문서명 | {게임명} UI/UX 디자인 문서 — {화면군} |
 | 게임 / 빌드 | {game} / {milestone, e.g. Vertical Slice} |
 | 버전 / 날짜 / 작성자 | v0.1 / {date} / {author} |
-| 상태 | draft · review · approved 중 하나 |
+| 상태 | draft · reviewed · approved 중 하나; 승인 revision/hash는 `approvals.json` 참조 |
 | 기준 GDD | `{path}` ({섹션 refs}) |
 
 ## 1. 개요 및 목표
@@ -53,8 +54,8 @@
 | {Title→Main} | {any key} | {Main Menu} | {HUD 숨김} |
 
 ### 3-1. 레퍼런스 개요
-와이어프레임이 참고한 인지도 높은 게임 UI. **실제 이미지+설명은 각 화면 본문 `#### 참조`에 인라인
-임베드**(별도 파일·링크 금지 — PDF/Word에서 안 열림). 아래는 한눈에 보는 개요표.
+와이어프레임이 참고한 인지도 높은 게임 UI. **이미지 파일은 `references/ui/`에 별도 보관하고,
+실제 이미지+설명은 각 화면 본문 `#### 참조`에서 상대 경로로 인라인 표시**한다. 아래는 개요표.
 전체 수집 후보·절차는 부록 REFERENCE_BOARD.
 
 | 화면 유형 | 참고 게임 / 출처 | 차용 포인트 | 본문 |
@@ -110,3 +111,4 @@
 
 - 전체 흐름 다이어그램 / 사이트맵
 - references/ui 매니페스트: `ui_research/manifests/local_ui_refs_manifest.md`
+- 계약·승인·의존성 추적: `ui-ref spec trace screen <screen-id>` 출력

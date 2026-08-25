@@ -1,232 +1,286 @@
 # Game-UI-Reference-Cli
 
+![Version](https://img.shields.io/badge/version-0.4.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Core deps](https://img.shields.io/badge/core%20dependencies-0-brightgreen)
 
 [English](README.md) · **中文** · [한국어](README.ko.md) · [日本語](README.ja.md)
 
-<img src="examples/lucid-dawn/art-concepts/levelup-ui-art-concept.png" alt="基于 ui-ref 参考生成的升级 UI 美术概念" width="900">
+一个以证据为基础的游戏 UX/UI 研究与规格编译器。`ui-ref` 收集和索引参考证据，把经过评审的决策转为可版本管理的界面/组件契约，验证其可追溯性和生命周期，并从同一份源数据生成确定性的线框图、可读规格、可点击原型以及引擎交接脚手架。
 
-<p align="center"><b>Concept art generated from UI references collected with this CLI</b></p>
+核心工作流没有外部依赖。JavaScript 渲染的参考站点可选用 Playwright；只有从视频提取帧时才需要 FFmpeg。
 
-一个聚焦游戏 UI、依赖极轻的 **UI 参考研究** 命令行工具。它会索引你本地已有的 UI 参考图，并（可选）
-从公开 UI 数据库收集参考页面——渲染页面、缓存其 HTML 与图片元数据、按需下载缩略图——以便研究 UI/UX 模式。
+> 本工具不会把 AI 的猜测变成已批准设计。逆向分析结果始终以 `draft` 导入，最终批准必须由具名的人类评审者明确确认。
 
-主要且结构化的来源是 **[Game UI Database](https://www.gameuidatabase.com)（gameuidatabase.com）**。
-其他若干公开 UI/UX 图库也可通过通用图片抓取模式工作（见[支持的站点](#支持的站点)）。
+## v0.4.0 概览
 
-它刻意保持保守、礼貌：
+- **参考证据：**索引本地截图，或礼貌地采集明确列出的公开页面；每项都保留来源路径/URL 和可哈希的溯源信息。
+- **规范契约：**用带版本的 JSON 管理项目、令牌、流程、参考、决策、批准、界面和可复用组件。
+- **质量门禁：**验证 ID、引用、绑定、交互、状态、无障碍、输入一致性、验收标准、流程和批准时效性。
+- **AI 友好的线框图：**编写小型 `.uiwire` DSL，无需图形依赖即可渲染确定性的带注释 SVG。
+- **单一源构建：**把契约编译为引擎中立 Design IR、Markdown、HTML 和渲染后的线框图。
+- **可点击评审：**生成带界面导航、场景状态、键盘焦点和手柄轮询的静态原型。
+- **引擎交接：**为 Unity UI Toolkit、Unity uGUI、Godot 和 Cocos 导出明确的脚手架及能力/哈希 manifest。
+- **证据约束逆向分析：**为任意多模态模型准备截图/视频证据包，再验证其结论并只作为草稿导入。
 
-- 先索引本地参考；
-- 外部 URL **仅在你列出时** 才抓取（不爬取）；
-- 除非你要求，**不** 下载素材；
-- 内置礼貌延迟、每次运行页数上限与 `robots.txt` 检查。
+## 5 分钟工作流
 
-> **需登录的站点不在范围内。** 图库需要账号的站点（如 Mobbin 的应用截图）无法用本工具收集，且有意不支持。
-> 这是个人研究助手，不是通用爬虫，也不用于再分发他人素材。请尊重各站点条款与 `robots.txt`。
+在游戏项目根目录运行下列命令。`--project-root`、`--design-root` 等全局选项应放在命令之前。
 
-## 它能找到什么 —— UI 参考
+```bash
+# 1. 创建轻量研究工作区。
+ui-ref init --project-name "My Game"
 
-核心工作是收集真实的游戏 UI 截图以研究设计模式。把 `ui-ref` 指向参考页面，它就会渲染页面、缓存元数据、
-下载缩略图 —— 再由你**按界面类型**整理。下面是为示例收集的参考，通过
-`ui-ref collect --browser --site interfaceingame` 从作品别页面获取：
+# 2. 把截图放到 references/ui/<collection>/<category>/ 下并建立索引。
+ui-ref scan-local
 
-![ui-ref 按界面类型收集的 UI 参考](docs/captures/references-found.png)
+# 3. 创建 ui_design/；当前本地 manifest 会自动导入。
+ui-ref spec init --project-name "My Game" --platform pc --locale zh
 
-每次运行还会写出一张可浏览的**联系表**（`ui_research/manifests/contact_sheet_*.html`），其中下载的缩略图
-内联显示，并附每张图的标题、尺寸与**来源链接**，外加一份**清单**（`scan-local` →
-`local_ui_refs_manifest.{json,md}`）。这些收集到的参考正是下方线框图的**来源** —— 每个设计界面都注明了
-它所借鉴的具体截图。
+# 4. 添加界面草稿和起始线框图。
+ui-ref spec add-screen "Main Menu" --id main-menu --wireframe
 
-## 成果示例
+# 编辑 ui_design/screens/main-menu.json 和 ui_design/wireframes/main-menu.uiwire。
+ui-ref spec validate --strict
 
-一个完整的实战示例位于 **[`examples/lucid-dawn/`](examples/lucid-dawn/)** —— 一款 survivor-like/roguelite
-（*Lucid Dawn: Dream Survivor*）的完整 UX/UI 设计文档，由 `game-ux-ui-design` 技能基于 `ui-ref` 收集的参考生成。
-涵盖 **12 个界面**（游戏外+游戏内）、**13 张带标注线框图**，提供英文、中文、韩文、日文四个版本。
+# 5. 编译 IR + Markdown/HTML + SVG 线框图。
+ui-ref spec build
 
-**带标注线框图** —— 每个 UI 元素都编号，区域以方框/圆圈标注，引线拉到画面 *之外* 的侧栏标签：
+# 6. 构建可点击静态原型。
+ui-ref prototype build
 
-<img src="docs/captures/hud.png" alt="游戏内 HUD 标注线框图" width="900">
+# 7. 生成引擎交接脚手架。
+ui-ref export unity-uitoolkit
+```
 
-### 设计文档有多详细？
+在浏览器中打开 `ui_design/build/design-spec.html` 和 `ui_design/build/prototype/index.html`。生成命令不会在没有 `--force` 时替换非空的自定义输出目录；只有明确要刷新时才使用 `--force`。
 
-每张线框图下方，**12 个界面中的每一个** 都包含：
+后续参考资料变更时运行：
 
-- **目的**（进入 / 退出 / 输入语境 / 优先级）
-- **参考** —— 借鉴的真实游戏 UI，连同「是什么 / 为什么」备注内联嵌入
-- **线框图**（SVG）+ **图例** —— 逐元素：位置 · 显示条件 · 行为/状态 · **数据绑定** · **可度量的判定标准** · 通俗的 UX 意图 · 无障碍
-- **状态矩阵** —— default / hover / pressed / selected / disabled-locked / loading / empty / error
-- **输入对等** —— 鼠标 · 键盘 · 手柄 · 屏幕阅读器
-- **数据绑定** —— 每个字段/事件都 **对照 GDD 校验**；GDD 中没有的标记为「需补充进 GDD」（绝不擅自杜撰）
-- **导航 · 边界情况 · 无障碍 · UX 设计意图（通俗语言）· 待定问题 · 验收清单**
+```bash
+ui-ref scan-local
+ui-ref spec import-references
+ui-ref spec check
+```
 
-外加配套文档：**设计令牌**（颜色 hex / 字体 / 动效 / USS 变量）、**数值与决策追踪表**（每个数值标注为
-GDD 锁定 / 标准 / 估算），以及 **引擎绑定（UI Toolkit × DOTS）** 与 **可用性测试计划** 附录。
+已有参考 ID 和人工备注会保留；消失的源文件会被标记为缺失，而不是静默删除。
 
-<details>
-<summary><b>查看真实节选 —— 游戏内 HUD 图例 + 状态矩阵</b></summary>
+## 规范源与生成结果
 
-图例（9 行节选）：
+把 `ui_design/` 当作设计的源代码。
 
-| # | 代码 | 元素 | 位置 | 数据绑定 | 判定标准 | 无障碍 |
-| --- | --- | --- | --- | --- | --- | --- |
-| 2 | A2 | 闹钟 | 左上 | `run.timer` 0–1200s (§4-1), `AlarmReached` (§12-1) | 任意时刻 ≤1s 读出剩余时间 | 钟面+数字，最后 60 秒 声音+变亮 |
-| 4 | A4 | HP / 护盾 | 左上 | `Character.hp` (§12-2), 护盾 (§12-2 补充) | 受击 ≤100ms 反映；低血用 颜色+闪烁+边框 | 颜色+闪烁+边框+数值 |
-| 7 | A7 | 净化条 | 底部居中 | 净化 (§4-2), `PurgeGained` · `BossThresholdReached` (§12-1) | 获取 ≤200ms 反映；达阈值 → Boss 预警 | 填充+数值+来源浮字 |
+| 路径 | 作用 | 提交到版本库？ |
+| --- | --- | --- |
+| `ui_design/project.json` | 项目元数据、路径和质量门禁 | 是 |
+| `ui_design/tokens.json`, `flows.json` | 共享设计令牌和导航流程 | 是 |
+| `ui_design/references.json` | 证据目录及来源权利/备注 | 是 |
+| `ui_design/decisions.json`, `approvals.json` | 决策和与哈希绑定的评审台账 | 是 |
+| `ui_design/screens/*.json` | 规范界面契约 | 是 |
+| `ui_design/components/*.json` | 规范可复用组件契约 | 是 |
+| `ui_design/wireframes/*.uiwire` | 规范文本线框图 | 是 |
+| `ui_design/schemas/` | 工作区契约 schema | 是 |
+| `ui_design/build/` | 生成的 IR、报告、文档、SVG、原型和 export | 否；重新构建 |
+| `ui_design/analysis/` | 临时帧、证据包、提示词和 contact sheet | 否；只把评审后的结果导入规范契约 |
 
-状态矩阵（节选）：
+仓库的 `.gitignore` 只忽略 `ui_design/build/` 和 `ui_design/analysis/`，**不会**忽略规范设计文件。
 
-| 元素 | default | pressed/active | disabled/locked | error |
-| --- | --- | --- | --- | --- |
-| 技能 (A8) | 环形填充 | 按下 + 音效，环形归 0 | 灰 + 锁 + “尚未解锁” | “冷却出错 —— 默认值” |
-| 终极 (A9) | 充能填充 | 释放过场 | <100 则变暗 + 剩余量 | 上次值 + 警告边框 |
+`ui-ref spec check` 会同时执行契约验证、批准检查、线框图 lint 和生成结果漂移检测。请编辑规范 JSON/`.uiwire`，不要编辑生成的 HTML、SVG、引擎文件或 Design IR。
 
-</details>
+## 生命周期与批准安全
 
-下面是一张**真实渲染的设计文档页面**（游戏内 HUD 界面 —— 参考截图、带标注线框图，以及完整的 10 列图例表，
-即交付原样）：
+界面和组件采用明确的生命周期：
 
-![设计文档页面示例 —— 游戏内 HUD](docs/captures/design-page-hud.png)
+```text
+draft → reviewed → approved → deprecated
+  ↑        │          │          │
+  └────────┴──────────┴──────────┘  （需要修订时返回 draft）
+```
 
-**更多界面** —— 全部见 [`examples/lucid-dawn/wireframes/`](examples/lucid-dawn/wireframes/)：
+状态提升不是简单修改字符串，而要通过质量门禁：
 
-<img src="docs/captures/levelup.png" alt="升级/选物" width="440"> <img src="docs/captures/results.png" alt="结算界面" width="440">
-<img src="docs/captures/skilltree.png" alt="Boss 奖励技能树" width="440"> <img src="docs/captures/character-select.png" alt="角色选择" width="440">
+```bash
+ui-ref spec promote screen main-menu \
+  --to reviewed --by "UX reviewer" --note "已检查状态、输入和验收标准"
 
-查看完整设计文档：[英文](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.md) ·
-[中文](examples/lucid-dawn/lucid_dawn_ui_ux_design.zh.md) ·
-[韩文](examples/lucid-dawn/lucid_dawn_ui_ux_design.ko.md) ·
-[日文](examples/lucid-dawn/lucid_dawn_ui_ux_design.ja.md) ·
-[PDF](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.pdf)。
+ui-ref spec promote screen main-menu \
+  --to approved --by "Design lead" --note "批准进入实现" \
+  --human-confirmed
+```
 
-## 安装
+- `reviewed` 和 `approved` 必须通过评审级完整性检查。
+- 最终 `approved` 必须带 `--human-confirmed`；AI 或 import 不能授予最终批准。
+- 批准台账同时保存产物和依赖的哈希。修改令牌、流程、参考或组件会使批准过期，重新评审前验证会失败。
+- 验证会重新检查本地证据的存在性与 SHA-256、组件引用以及 `project.json` 中启用的全部质量门禁。创建/import 的 `--force` 只能替换从未评审过的草稿。
+- `ui-ref spec trace screen main-menu` 展示证据、绑定、交互、批准和依赖的可追溯性。
+- `ui-ref prototype build --release` 和 `ui-ref export <engine> --release` 会拒绝未批准或无效的发布输入。
+
+批准标志不能替代真实评审。只有具名人员检查了该精确修订后，才应使用 `--human-confirmed`。
+
+## 截图和视频逆向分析
+
+分析工作流与提供商无关，它本身**不会**上传媒体或调用模型。
+
+```bash
+# 截图、目录或混合输入
+ui-ref analyze media ./captures/menu.png ./captures/hud/
+
+# 视频帧提取需要 PATH 中存在 ffmpeg
+ui-ref analyze media ./captures/gameplay.mp4 --interval 2 --frame-limit 120
+```
+
+`ui_design/analysis/<timestamp>/` 运行目录包含：
+
+- `analysis-packet.json` — 证据 ID、路径、SHA-256 哈希、尺寸和时间戳
+- `analysis-prompt.md` — 证据规则和必需的结果形状
+- `analysis-result.schema.json` — 结果契约
+- `contact-sheet.html` — 本地评审页
+- 输入视频时产生的提取帧
+
+完全相同的文件/帧会按 SHA-256 去重。把证据包、提示词和被引用的图片交给你选择的多模态提供商，保存其 JSON 响应，然后导入：
+
+```bash
+ui-ref analyze import result.json \
+  --packet ui_design/analysis/<timestamp>/analysis-packet.json
+```
+
+import 会验证证据 ID、`observed` / `inferred` / `unknown` 分类和置信度，并记录提供商/模型/提示词溯源，只创建或更新**草稿**界面契约。精确的数据包与证据哈希会绑定到抗冲突的参考 ID，参考、契约和线框图要么全部提交，要么完全不提交。即使使用 `--force`，已评审、已批准、已弃用或带有评审历史的草稿也会被保留。暂停规则、初始焦点、正式事件、失败处理等不可见运行时行为，在没有其他证据前必须保持 `unknown`。
+
+## 线框图与构建输出
+
+创建、检查并渲染逐行书写的 `.uiwire` 源：
+
+```bash
+ui-ref wireframe new main-menu
+ui-ref wireframe lint ui_design/wireframes/main-menu.uiwire
+ui-ref wireframe render ui_design/wireframes/main-menu.uiwire
+```
+
+源文件以版本和 canvas 开始，后跟稳定元素 ID 与 key/value 几何信息。label 和 callout 在输出 SVG 前会进行转义。
+
+```text
+uiwire 1
+canvas 1920 1080
+button A1 x=720 y=420 w=480 h=96 label="Start"
+callout A1 side=right text="Primary action"
+```
+
+`ui-ref spec compile` 只写入引擎中立的 `design.ir.json`。`ui-ref spec build` 还会生成 `design-spec.md`、可读的 `design-spec.html`、带注释 SVG 线框图，以及包含源/输出哈希的 `build-manifest.json`。
+
+## 原型与引擎交接
+
+```bash
+ui-ref prototype build
+ui-ref export unity-uitoolkit
+ui-ref export unity-ugui
+ui-ref export godot
+ui-ref export cocos
+```
+
+使用 `--screen <id>` 只导出一个界面，使用 `--release` 要求每个界面都有当前的人类批准。已编写的 `flows.json` 会驱动原型的入口与导航；同一动作存在冲突目标时验证会失败。每个引擎目录都包含 `engine-ir.json`、`capability-report.json` 和 `export-manifest.json`，每次导出会原子替换上一组生成文件，已移除界面不会残留。
+
+这些是**实现交接脚手架，不是可直接投产的引擎项目**：
+
+| 目标 | 生成内容 | 仍需人工/项目专用工作 |
+| --- | --- | --- |
+| Unity UI Toolkit | 每界面 UXML、`tokens.uss`、绑定/事件 JSON | 运行时绑定、项目资源、响应式调整、音频/触觉反馈 |
+| Unity uGUI | RectTransform/组件交接 JSON | Unity 端 importer 和真正的 prefab 序列化 |
+| Godot | 每界面 `Control` `.tscn`、绑定/事件 JSON | Theme 资源、资产、signal 和 GDScript |
+| Cocos | 节点/组件/UITransform 交接 JSON | 版本专用 prefab 序列化和编辑器 adapter |
+
+务必阅读 `capability-report.json`；它明确标出契约数据保留范围与人工/有损工作的边界。
+
+## 安装与测试
 
 ```bash
 git clone https://github.com/SillyToolValley/Game-UI-Reference-Cli
 cd Game-UI-Reference-Cli
-pip install -e .
+python -m pip install -e .
+ui-ref --version
 ```
 
-可选的浏览器支持（JavaScript 渲染的站点——即大多数——需要）：
+核心命令只使用 Python 3.10+ 标准库。若要处理 JavaScript 渲染的参考站点：
 
 ```bash
-pip install -e ".[browser]"
-playwright install chromium     # 一次性：下载无头浏览器
+python -m pip install -e ".[browser]"
+playwright install chromium
 ```
 
-| | `scan-local` | `collect`（静态） | `collect --browser` |
-| --- | --- | --- | --- |
-| 仅需 Python 标准库 | ✅ | ✅ | — |
-| 需要 `playwright` + 浏览器 | — | — | ✅ |
-| 适用于服务端渲染页面 | n/a | ✅ | ✅ |
-| 适用于 JS 渲染的参考站点 | n/a | ✗（0 项） | ✅ |
+视频分析需要另外安装 FFmpeg，并确保 `ffmpeg` 位于 `PATH`。截图分析不需要它。
 
-浏览器路径直接使用 **Playwright**（真实的桌面 UA+视口，可选自动滚动以加载懒加载图片）。不含任何
-反检测/反爬层——所支持的公开站点会把内容提供给普通无头浏览器；内置的礼貌机制让运行保持得体。
-
-## 快速开始
-
-在项目根目录：
+使用标准库运行回归测试：
 
 ```bash
-ui-ref init --project-name "My Project"
-# 将参考图放在 references/ui/<collection>/<category>/*.png|jpg|... 下
+python -m unittest discover -s tests -v
+```
+
+## 参考采集（旧工作流，继续支持）
+
+原有 `init`、`scan-local`、`collect` 工作流保持兼容。采集刻意采用保守策略：
+
+- 优先索引本地参考；
+- 只获取用户**明确列出的**外部 URL，不做爬取；
+- 未明确要求时不下载资产；
+- 内置请求间隔、单次页面上限、`robots.txt` 检查、公共网络 URL 检查和响应大小限制。
+
+需要登录的图库不在范围内。本工具是个人研究助手，不是通用爬虫，也不是重新分发他人资产的方式。请遵守站点条款、版权和 `robots.txt`。
+
+### 索引本地参考
+
+把文件放在 `references/ui/<collection>/<category>/` 下，然后运行：
+
+```bash
 ui-ref scan-local
 ```
 
-## 配套技能：`game-ux-ui-design`
+它从 PNG/GIF/JPEG/WebP 字节中读取图片尺寸，根据文件夹路径推断粗粒度标签，并写入：
 
-本仓库附带一个 **Claude Code 技能**，把你在这里收集的参考转化为 **优秀的游戏 UX/UI 设计文档** ——
-专为 survivor-like / 弹幕天堂 / roguelite 游戏打造。位置：
-[`.claude/skills/game-ux-ui-design/`](.claude/skills/game-ux-ui-design/)。
+```text
+ui_research/manifests/local_ui_refs_manifest.json
+ui_research/manifests/local_ui_refs_manifest.md
+```
 
-给定 GDD 或功能简报，它会产出这样的设计文档：
+### 采集明确列出的页面
 
-- **参考图内联嵌入到每个界面正文**（用 `ui-ref` 收集）；
-- **由这些参考推导出的线框图**——**每个 UI 元素都编号**、区域以方框/圆圈标注、**引线拉出画面外**做说明
-  （SVG 标注引线套件——见
-  [`templates/wireframe-kit.svg`](.claude/skills/game-ux-ui-design/templates/wireframe-kit.svg)）；
-- 每个界面都有 **图例 / 状态矩阵 / 输入对等 / 数据绑定** 表；
-- 每个界面都有通俗语言的 **「UX 设计意图」**（用游戏 UX 启发法思考，但正文不出现术语）；
-- **出货级（可选）阶段**：设计令牌 · 数值/决策追踪表 · 引擎绑定 · 可用性测试计划；
-- Markdown 源渲染为 **宽屏 16:9 横向 PDF**（`build_pdf.py` + `design-pdf.css`），让密集表格便于分享；
-- 可选地把选定线框图生成 **UI 美术概念 mockup**，用于检查氛围、材质语言以及卡牌/HUD 处理。
-
-完整生成示例见 **[`examples/lucid-dawn/`](examples/lucid-dawn/)**（12 界面、13 张线框图、令牌、追踪表、
-英/中/韩/日）以及上方的[成果示例](#成果示例)截图。
-
-要在你的游戏项目中使用，把技能文件夹复制到该项目的 `.claude/skills/`（或复制到 `~/.claude/skills/`
-以对所有项目生效），然后让 Claude Code “画出〈某界面〉的 UX/UI 设计文档”。
-
-## 命令
-
-### `scan-local` —— 索引本地参考
-
-遍历 `references/ui/<collection>/<category>/<file>`，从文件字节读取图片尺寸（PNG/GIF/JPEG，无需 Pillow），
-根据文件夹路径推断粗略标签，并在 `ui_research/manifests/` 下写出 JSON + Markdown 清单。
-
-### `collect` —— 抓取显式列出的页面
-
-把参考 URL（每行一个）放进 `ui_research/urls.txt`，然后：
+在 `ui_research/urls.txt` 中每行放一个 URL，或重复使用 `--url`：
 
 ```bash
-# JS 渲染站点 → 用浏览器。会按每个 URL 的域名自动选择模式。
+# JS 渲染站点：使用可选浏览器路径。
 ui-ref collect --browser
 
-# 每页下载几张图 + 滚动以加载懒加载图
-ui-ref collect --browser --scroll 6 --download-gallery-assets --download-asset-limit 2
+# 下载少量图片并滚动以触发懒加载内容。
+ui-ref collect --browser --scroll 6 \
+  --download-gallery-assets --download-asset-limit 2
 
-# 为未知站点强制指定模式或图库类名
+# 为未知站点强制指定提取行为。
 ui-ref collect --browser --mode images
 ui-ref collect --browser --gallery-class "thumb-card"
 ```
 
-可在一个 `urls.txt` 中混合多个受支持站点的 URL——每个 URL 会自动选择各自的预设。
+每次运行都会在 `ui_research/manifests/` 下写入 `collected_pages_<run_id>.json` 和可在浏览器查看的 `contact_sheet_<run_id>.html`。常用选项包括 `--site`、`--mode`、`--gallery-class`、`--scroll`、`--max-pages`、`--delay`、`--timeout`、`--keep-*`、`--download-full-images`、`--no-headless`。
 
-每次运行会在 `ui_research/manifests/` 下写出：
+### 支持的站点和模式
 
-- `collected_pages_<run_id>.json` —— 每页状态、robots 备注、页面标题、链接/素材/图库元数据；
-- `contact_sheet_<run_id>.html` —— **可浏览** 的联系表：已下载缩略图内联渲染，所有提取/抓取的图片都
-  连同标题/尺寸与来源链接一并列出。用浏览器打开即可审阅收集结果。
+- `gallery`：读取结构化 gallery anchor 和元数据。
+- `images`：采集渲染后的 `<img>`/`srcset` 候选，同时过滤明显的页面装饰。
 
-> **站点实况提醒（亲测）：** Game UI Database 是 SPA + Cloudflare，无头收集不稳定 ——
-> `index.php?&scrn=N` 的界面类型筛选在直接加载时不会生效（所有 scrn 得到同一默认图库），
-> `gameData.php?id=N` 的单游戏页也可能超时。**interfaceingame.com 的单游戏页**（`/games/<slug>/`）
-> 最稳定（每款游戏 30+ 张真实截图）。获取游戏 id/slug 时，用网页搜索比站内搜索（SPA）更快。
-> 若收集站点没有直系品类（如弹幕幸存者类），用相邻作品 + 文字描述其模式来补充。
-
-常用参数：`--site`、`--mode`、`--gallery-class`、`--scroll`、`--max-pages`、`--delay`、`--timeout`、
-`--user-agent`、`--keep-*`、`--download-full-images`、`--download-title-contains`、`--no-headless`。
-
-## 支持的站点
-
-两种提取模式：
-
-- **`gallery`** —— 结构化：读取图库锚点（锚点类名 + `data-title`/`data-imageid`/`data-thumb`），
-  每项元数据丰富。
-- **`images`** —— 通用：抓取渲染页面的 `<img>`/`srcset` 图片（过滤掉图标/头像/Logo 等明显的界面装饰）。
-  适用于大多数站点。
-
-模式/预设按每个 URL 的域名自动判定；可用 `--site`/`--mode`/`--gallery-class` 覆盖。
-
-| 站点键 | 域名 | 模式 | 备注 |
+| 站点键 | 域名 | 模式 | 说明 |
 | --- | --- | --- | --- |
-| `gameuidatabase` | gameuidatabase.com | gallery | Game UI Database —— 结构化图库（需 `--browser`；注意 SPA+CF）。 |
-| `interfaceingame` | interfaceingame.com | images | Interface In Game —— 游戏 UI 截图（推荐单游戏页）。 |
-| `screenlane` | screenlane.com | images | 移动端 UI/UX 流程。 |
+| `gameuidatabase` | gameuidatabase.com | gallery | 结构化 Game UI Database 图库；使用 `--browser`。 |
+| `interfaceingame` | interfaceingame.com | images | 游戏 UI 截图。 |
+| `screenlane` | screenlane.com | images | 移动 UI/UX 流程。 |
 | `collectui` | collectui.com | images | 每日 UI 灵感。 |
 | `landbook` | land-book.com | images | 落地页图库。 |
 | `lapaninja` | lapa.ninja | images | 落地页示例。 |
 | `refero` | refero.design | images | Web/iOS UI 灵感。 |
-| `dribbble` | dribbble.com | images | 设计稿（公开页面）。 |
-| `behance` | behance.net | images | 创意展示（公开页面）。 |
+| `dribbble` | dribbble.com | images | 公开设计作品。 |
+| `behance` | behance.net | images | 公开创意展示。 |
 
-任何**没有预设**的站点默认走 `images` 模式（通用抓取）。需要登录的图库不受支持。
+未知公开站点默认使用 `images`。要添加站点，在 `ui_ref_cli.py` 的 `SITE_PRESETS` 中加入 `match`、`mode`、可选的 `gallery_class` 和 `notes`；只有结构化元数据使用不同属性时才需扩展 `LinkExtractor`。
 
-## 配置发现
+### 配置发现与采集礼仪
 
-不带 `--config` 时，CLI 会在以下位置查找 `ui_ref_config.json`：
+未提供 `--config` 时，CLI 按以下顺序搜索：
 
 ```text
 ui_ref_config.json
@@ -234,13 +288,53 @@ ui_research/ui_ref_config.json
 docs/ui_research/ui_ref_config.json
 ```
 
-用 `--project-root` 可从别处针对某个项目文件夹运行。
+使用全局 `--project-root` 指定其他项目，使用 `--design-root` 覆盖 `ui_design`。采集应保持小规模、低频率；默认请求间隔为 8 秒，每次最多 20 页。把采集内容当作带引用的研究上下文，不要当作资产包或训练语料库。
 
-## 礼仪
+## 用于 DOCX/PDF 和深度设计文档的配套技能
 
-运行要小而慢（默认 8 秒延迟、每次 20 页）。把收集到的页面当作引用/参考上下文 —— 不是可再分发的素材包，
-也不是训练数据。
+v0.4.0 核心构建会有意生成 JSON Design IR、Markdown、HTML、SVG 和静态原型文件，**不会**直接生成 DOCX 或 PDF。
+
+仓库 checkout 中包含的 [`game-ux-ui-design` 配套技能](.claude/skills/game-ux-ui-design/) 增加长篇设计文档工作流：GDD 绑定、逐界面设计依据、密集图例/状态表、设计令牌、决策跟踪、美术概念 brief 和文档渲染。其模板包含 [`build_docx.py`](.claude/skills/game-ux-ui-design/templates/build_docx.py) 与 [`build_pdf.py`](.claude/skills/game-ux-ui-design/templates/build_pdf.py)。需要面向利益相关者的 DOCX/PDF 时使用该配套技能，同时保持规范 `ui_design` 契约作为机器可读的唯一事实来源。
+
+Python wheel 只安装 `ui-ref` CLI，不会安装或注册此配套技能。需要配套工作流时，请 clone/download 本仓库，或将 `.claude/skills/game-ux-ui-design/` 复制到当前助手支持的技能目录。
+
+## 成果示例
+
+完整配套技能示例位于 [`examples/lucid-dawn/`](examples/lucid-dawn/)：包含 12 个已记录界面、13 个带注释线框图、令牌、决策、引用，以及英语/中文/韩语/日语设计文档。
+
+![按界面类型归组的 UI 参考](docs/captures/references-found.png)
+
+<img src="docs/captures/hud.png" alt="带注释的游戏内 HUD 线框图" width="900">
+
+<img src="docs/captures/levelup.png" alt="升级选择" width="440"> <img src="docs/captures/results.png" alt="结果界面" width="440">
+
+阅读完整示例：[英语](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.md) · [中文](examples/lucid-dawn/lucid_dawn_ui_ux_design.zh.md) · [韩语](examples/lucid-dawn/lucid_dawn_ui_ux_design.ko.md) · [日语](examples/lucid-dawn/lucid_dawn_ui_ux_design.ja.md) · [PDF](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.pdf)。
+
+## 命令参考
+
+| 命令 | 用途 |
+| --- | --- |
+| `ui-ref init` | 初始化参考研究和配置 |
+| `ui-ref scan-local` | 索引本地参考媒体 |
+| `ui-ref collect` | 获取明确列出的公开参考页面 |
+| `ui-ref spec init` | 初始化规范契约工作区；`design` 是 `spec` 的别名 |
+| `ui-ref spec add-screen` / `add-component` | 创建契约草稿 |
+| `ui-ref spec import-references` | 把最新本地 manifest 同步到证据目录 |
+| `ui-ref spec validate [--strict]` | 验证结构、语义、生命周期门禁和批准 |
+| `ui-ref spec check [--strict]` | 验证 + 线框图 lint + 生成结果漂移检测 |
+| `ui-ref spec compile` | 构建引擎中立 Design IR |
+| `ui-ref spec build` | 构建 IR、Markdown、HTML、注释 SVG 和哈希 manifest |
+| `ui-ref spec promote` | 执行带门禁的生命周期转换并记录台账 |
+| `ui-ref spec trace` | 报告证据和依赖可追溯性 |
+| `ui-ref wireframe new/lint/render` | 创建、验证并渲染 `.uiwire` |
+| `ui-ref prototype build [--release]` | 构建可点击静态原型 |
+| `ui-ref analyze media/import` | 准备证据包，并将验证后的 AI 结果作为草稿导入 |
+| `ui-ref export <engine> [--screen ID] [--release]` | 生成引擎交接脚手架 |
+
+使用 `ui-ref <command> --help` 查看全部选项。
 
 ## 许可证
 
-MIT —— 见 [LICENSE](LICENSE)。
+MIT — 见 [LICENSE](LICENSE)。
+
+项目文档：[变更记录](CHANGELOG.md) · [贡献指南](CONTRIBUTING.md) · [安全策略](SECURITY.md)

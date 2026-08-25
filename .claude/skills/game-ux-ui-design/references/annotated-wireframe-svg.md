@@ -1,12 +1,38 @@
-# Annotated wireframe kit (SVG) — how to draw numbered callouts with leader lines
+# Annotated wireframes — deterministic `.uiwire` and manual SVG fallback
 
-This is the heart of the deliverable. Every screen in the design document gets ONE annotated
-wireframe: a 16:9 screen drawn as boxes, with **each UI element numbered, its region
+Every screen gets an annotated wireframe: a screen drawn as boxes, with **each UI element numbered, its region
 marked by a rectangle or circle, and a leader line pulled OUTSIDE the frame to a short
 label**. The full description for each number lives in a **legend table** beneath the
 image — never crammed into the picture.
 
-Pair this file with `../templates/wireframe-kit.svg` (copy it per screen).
+The preferred source is the deterministic, AI-friendly `.uiwire` file created from the screen
+contract. SVG is a generated view:
+
+```bash
+ui-ref wireframe new <screen-id>
+ui-ref wireframe lint ui_design/wireframes/<screen-id>.uiwire
+ui-ref wireframe render ui_design/wireframes/<screen-id>.uiwire
+```
+
+Use `../templates/wireframe-kit.svg` only as a manual fallback for a custom redline that the v1
+DSL cannot express. In that case, this file's fixed 1760×820 gutter rules apply.
+
+### `.uiwire` v1 grammar
+
+```text
+uiwire 1
+canvas 1920 1080 title="Combat HUD"
+panel HUD x=32 y=32 w=520 h=160 label="Survival status"
+bar A1 x=16 y=20 w=420 h=28 parent=HUD label="HP" value=0.65 bind=player.hp
+button A2 x=1712 y=32 w=176 h=72 label="Pause" action=pause.open
+callout A1 side=left text="Health remains readable during combat"
+```
+
+Supported nodes: `panel`, `rect`, `text`, `button`, `bar`, `image`, `icon`, `slot`, `input`,
+and `toggle`. IDs begin with a letter and remain immutable. Geometry is in canvas pixels;
+children use parent-relative coordinates. Unknown attributes, non-finite numbers, duplicate IDs,
+parent cycles, missing callout targets, and out-of-canvas nodes are errors. v1 has no includes,
+expressions, scripts, or code evaluation. The same input renders the same SVG bytes.
 
 ---
 
@@ -20,9 +46,9 @@ Pair this file with `../templates/wireframe-kit.svg` (copy it per screen).
 | Renders in GitHub / VS Code preview as a file | ✅ | ✅ | ✅* | ✅ |
 | Editable in text by an AI, diff-able | ✅ | ✅ | ✅ | ✗ |
 
-SVG is the only text format that does the user's exact ask — **번호 + 동그라미/네모 영역표시
-+ 밖으로 뽑은 선 + 설명**. Always ship an SVG. Optionally add a tiny ASCII layout map
-(below) as a fast-scan companion, but the SVG is the source of truth.
+SVG is the portable rendered format for **번호 + 동그라미/네모 영역표시 + 밖으로 뽑은 선 + 설명**.
+Always ship the SVG view, but when `.uiwire` exists it is the editable wireframe source of truth.
+Optionally add a tiny ASCII layout map as a fast-scan companion.
 
 > Rendering note: link the `.svg` as a **file** — `![HUD](wireframes/hud.svg)` — so its
 > internal `<style>` applies. Do **not** paste raw `<svg>` inline into the `.md`: GitHub
@@ -40,7 +66,7 @@ SVG is the only text format that does the user's exact ask — **번호 + 동그
 
 ---
 
-## The coordinate contract (memorize this)
+## Manual SVG fallback coordinate contract
 
 ```
 viewBox: 0 0 1760 820
@@ -215,14 +241,17 @@ NOT a replacement for the SVG.
    labels don't overlap, every number has a legend row.
 5. Write the legend table with a **UX 근거** per row.
 
-### Validation — run BOTH on every wireframe (not optional)
+### Validation — structural and visual checks are both required
 
-**1. Structural lint (dependency-free).** Ship & run `validate_wireframe.py` (in `templates/`).
+For `.uiwire`, run `ui-ref wireframe lint` and `ui-ref wireframe render`. For manual SVG,
+run the dependency-free `validate_wireframe.py` in `templates/`.
+
+**1. Structural lint (dependency-free).** The manual SVG validator
 It checks: XML well-formed, background rect present, ≤10 callouts, every number appears
 exactly twice (badge + label), leaders ≤4 points (one bend) and non-crossing, gutter balance
 (≤6/side, imbalance ≤2), and off-canvas text clipping:
 ```bash
-python templates/validate_wireframe.py wireframes/hud.svg wireframes/levelup.svg wireframes/results.svg
+python .claude/skills/game-ux-ui-design/templates/validate_wireframe.py wireframes/hud.svg wireframes/levelup.svg wireframes/results.svg
 ```
 Fix every FAIL before embedding. (The badge↔legend-row mapping still needs an eyeball against
 the .md table — the SVG alone can't see the legend.)

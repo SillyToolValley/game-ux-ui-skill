@@ -4,5 +4,14 @@ __pycache__/
 build/
 dist/
 
-# Generated worked-example design document sample (incl. harvested third-party screenshots) — not redistributed; published sample TBD
+# Generated UX/UI compiler output and transient reverse-engineering packets.
+# Canonical ui_design contracts, schemas, and .uiwire sources remain tracked.
+ui_design/build/
+ui_design/analysis/
+
+# Local legacy worked-example output (including third-party research captures) is intentionally not redistributed.
 .claude/skills/game-ux-ui-design/examples/lucid-dawn/
+.claude/skills/game-ui-spec/
+
+# Project-specific generated specifications stay local unless explicitly curated for publication.
+deliverables/

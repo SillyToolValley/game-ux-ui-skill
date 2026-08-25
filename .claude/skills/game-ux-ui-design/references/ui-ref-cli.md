@@ -1,103 +1,133 @@
-# Reference harvesting with `ui-ref` (this repo's CLI)
+# Reference evidence with `ui-ref`
 
-The design document's reference images are gathered with **this repo's `ui-ref` CLI** and then linked
-from the design document as **separate file links** (the user's hard requirement #1). Run this BEFORE
-drawing wireframes — the wireframe is *derived from* the references.
+`ui-ref` keeps research evidence separate from authored UI contracts:
 
-> If `ui-ref` is unavailable in the current environment, the skill still produces the design document —
-> it just notes that references must be gathered manually into the same
-> `references/ui/<collection>/<category>/` layout so the links resolve.
-
-## 1. Initialize the workspace (once per project)
-```bash
-ui-ref init --project-name "<게임명>"
+```text
+references/ui/     curated image files
+ui_research/       URL lists, caches, source manifests, contact sheets
+ui_design/         canonical contracts and generated outputs
 ```
-Creates `references/ui/`, `ui_research/` (`cache/html`, `cache/assets`, `manifests`),
-`ui_research/urls.txt`, and `ui_ref_config.json`.
 
-**Local refs convention:** `references/ui/<collection>/<category>/*.png|jpg|webp|gif`
-(e.g. `references/ui/survivor-like/hud/`, `references/ui/roguelite/level-up/`). The
-`<collection>/<category>` folder names matter — `scan-local` derives `collection` +
-`category` from them and infers coarse tags (`hud`, `combat`, `progression`, `inventory`,
-`navigation`, `party`…) from the path.
+An image is a separate, hashable file in `references/ui/`. A generated Markdown/PDF/DOCX
+may display that file inline through a relative image path. Do not create a separate Markdown
+page that becomes a dead local link in shared exports.
 
-## 2. Harvest references (per-screen-type URLs)
-Put the Game UI Database deep-links from `screen-exemplars.md` into `ui_research/urls.txt`.
-Game UI Database is JS-rendered, so the **browser path is required**:
+## 1. Initialize safely
+
 ```bash
-# one-time browser setup
-pip install -e ".[browser]" && playwright install chromium
+ui-ref init --project-name "<game>"
+```
 
-# harvest; scroll loads lazy images; grab a couple of thumbnails per page
+This command is idempotent: re-running it preserves existing configuration and the URL file.
+Configured workspace paths must stay inside the project root.
+
+Local convention:
+
+```text
+references/ui/<collection>/<category>/*.png|jpg|jpeg|webp|gif
+```
+
+Use stable, descriptive filenames. Collection and category become searchable manifest fields.
+
+## 2. Collect a small source set
+
+Put one explicit source page per line in `ui_research/urls.txt`. Prefer first-party captures
+or stable game/interface gallery pages. Avoid login walls and do not attempt to bypass access
+controls.
+
+For JavaScript-rendered pages:
+
+```bash
+pip install -e ".[browser]"
+playwright install chromium
 ui-ref collect --browser --scroll 6 --download-gallery-assets --download-asset-limit 2
 ```
-Each run writes to `ui_research/manifests/`: `collected_pages_<run_id>.json` and a browsable
-`contact_sheet_<run_id>.html`. Defaults are polite (8s delay, 20 pages/run, robots.txt
-checked) — keep runs small. Login-walled sites (Mobbin) are out of scope. Unknown galleries
-auto-pick `--mode images`; override with `--mode images` / `--gallery-class`.
 
-> **SITE REALITY CHECK (learned the hard way).**
-> - **Game UI Database is SPA + Cloudflare → headless harvest is unreliable.** `index.php?&scrn=N`
->   does NOT apply the screen-type filter on direct load (you get the same default/recent gallery
->   for every `scrn`), and `gameData.php?id=N` per-game pages can time out under headless (Cloudflare
->   challenge). If you see the same files repeat across different `scrn`, the filter didn't apply.
-> - **Prefer `interfaceingame.com` per-game pages** (`/games/<slug>/`) — they reliably return 30+
->   real screenshots with descriptive filenames (game+screen) that curate easily. Category pages
->   (`/main-menu/` etc.) return only 1 representative image — use them as entry points, not sources.
-> - **Find game ids/slugs fast:** site search is also SPA; use a web search ("Game UI Database
->   <game> gameData.php") to get `?id=N`, or probe `interfaceingame.com/games/<slug>/` for 200.
-> - **`cover`/`banner` first:** per-game downloads grab the box-art cover/banner before screens —
->   raise `--download-asset-limit` and curate out cover/banner.
-> - **Genre-direct fallback:** if the direct genre (e.g. survivor-like: Vampire Survivors/Brotato)
->   isn't on your harvest site, gather the closest adjacents AND describe the direct-genre pattern
->   in words inline (skill's worded-pattern fallback) + leave the harvest recipe to add real shots later.
+For a plain HTML page, omit `--browser`. Use `--mode images` when a page has no recognized
+gallery structure. The collector:
 
-## 3. Curate into `references/ui/<collection>/<category>/`
-Review the contact sheet, then **manually save the chosen images** into the local refs tree
-(the tool intentionally downloads only a few thumbnails — collected pages are citation
-context, not a redistributable asset pack). Use stable, descriptive filenames the design document links
-to, e.g. `references/ui/survivor-like/hud/001_vampire_survivors_hud.png`.
+- checks public HTTP(S) URLs and robots policy;
+- blocks localhost, private/link-local destinations, and unsafe redirects;
+- uses bounded requests and conservative defaults;
+- writes atomic caches and manifests with final URL and SHA-256 where available;
+- does not download gallery assets unless explicitly requested.
 
-## 4. Index the curated set
+Keep runs small. A successful fetch means only that evidence was collected, not that it may be
+redistributed. Record the source URL and usage/rights note.
+
+### Site reality
+
+- SPA filters may not survive direct deep links; repeated identical results across categories
+  usually indicate that a filter did not apply.
+- Cloudflare or login-protected sites may reject automation. Do not bypass the protection.
+- Per-game pages often yield better evidence than broad category pages.
+- Covers and banners commonly appear before actual interface captures; curate them out.
+- If the direct genre is absent, use adjacent references but write the transfer limitation.
+
+## 3. Curate, then index
+
+Review the generated contact sheet and copy only selected study references into
+`references/ui/<collection>/<category>/`. Keep the original source page in your notes.
+
 ```bash
 ui-ref scan-local
 ```
-Writes `ui_research/manifests/local_ui_refs_manifest.{json,md}` — link the `.md` from the
-design document's appendix as the reference index.
 
-## 5. Embed references INLINE in each screen's 참조 section (no separate files, no links)
-**Do NOT put references in separate files and link to them.** In the final deliverable (PDF /
-Word), a link to `references/hud.md` is **dead** — it opens nothing, and the recipient doesn't
-have that file. So embed the curated images + "무엇을/왜" notes **directly inside each screen's
-`#### 참조` subsection** in `design.md`:
-```markdown
-#### 참조 — 이 화면이 참고한 실제 게임 UI
-*출처: Game UI Database — Enemy Health & Damage (scrn=143).*
+This writes:
 
-![적 체력 + 쿨다운 링](references/ui/survivor-like/hud/001_action-hud_enemy-health.jpg)
-**무엇을.** 적 머리 위 체력 + 플레이어 쿨다운 링. **왜.** 시선 이동 없이 위협·자원을 읽게.
-→ 본작 적용: 보스 HP(A6) · 스킬 라디얼(A8) · 궁극기(A9).
-
-| 참조 포인트 | 본작 콜아웃 | 근거 |
-| --- | --- | --- |
-| 적 체력 수치/바 | A6 보스 HP | 위협 상태가 항상 보이게 |
-
-> 추가 참고: Vampire Survivors / Dead Cells / RoR2. (전체 후보·절차: 부록 REFERENCE_BOARD)
+```text
+ui_research/manifests/local_ui_refs_manifest.json
+ui_research/manifests/local_ui_refs_manifest.md
 ```
-> Image paths are relative to `design.md` (which sits at the project root), so use
-> `references/ui/<collection>/<category>/x.jpg` — NOT `ui/...` and NOT `../`. The image
-> renders inline in the design document, the PDF, and the Word doc.
 
-Derive the wireframe FROM these references: callouts trace the layout decisions visible in the
-embedded shots, and the **UX 설계 의도** says which exemplar each decision follows (plainly). Keep
-`REFERENCE_BOARD.md` as the harvest *plan/index* in the appendix. The collected thumbnails are
-**personal study citations** (attribute the source; not a redistributable asset pack).
+The manifest indexes files already present locally. It does not claim those files were fetched
+by the collector.
 
-## When you cannot run a live harvest
-Put a **reference BOARD** in the appendix instead — a table per screen of exemplar game +
-source URL + intended local path + the `ui-ref` command to fetch it later — and in each
-screen's `#### 참조` section, **state the intended image and describe the borrowed pattern
-in words** (no image yet) with a one-line note that images are pending harvest. Put a visible
-banner at the TOP of `design.md` saying images aren't committed yet and where the recipe is.
-Keep the intended paths exact so the moment you save real images, the inline `![]()` embeds
-resolve. Never word it as if images are attached when they aren't.
+## 4. Import evidence into the contract catalog
+
+```bash
+ui-ref spec init --project-name "<game>"
+ui-ref spec import-references
+```
+
+The importer calculates SHA-256, creates stable reference IDs, preserves existing IDs and human
+annotations, recovers a source URL from collection manifests when possible, and marks missing
+files instead of silently deleting their evidence records.
+
+Use the resulting `ui_design/references.json` IDs from screens, elements, and observations.
+Record:
+
+- what is directly visible;
+- the exact source/capture;
+- what design decision it supports;
+- why the pattern should transfer;
+- the known transfer limit;
+- whether attribution/redistribution is verified.
+
+## 5. Display references in human-readable output
+
+The canonical relationship lives in JSON as `reference_ids`. In an authored fallback
+Markdown document, display the separate local file inline and keep the source URL beside it:
+
+```markdown
+![Enemy health and cooldown reference](references/ui/action/hud/example.jpg)
+
+**Observed:** Enemy health and cooldown remain near the play focus.
+**Applied to:** `A6`, `A8`.
+**Transfer limit:** The source game has lower simultaneous visual density.
+**Source:** [original interface page](https://example.invalid/game)
+```
+
+Use paths relative to the Markdown file. Do not say an image is attached when it is missing.
+If evidence is pending, use an explicit `evidence_exception` and list the planned capture.
+
+## 6. Verification
+
+```bash
+ui-ref spec trace screen <screen-id>
+ui-ref spec validate --strict
+ui-ref spec check --strict
+```
+
+The trace report connects a screen to reference records, bindings, interactions, approvals,
+and dependency hashes. Review it before approval and after any evidence replacement.
