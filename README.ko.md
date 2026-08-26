@@ -7,6 +7,18 @@
 
 [English](README.md) · [中文](README.zh.md) · **한국어** · [日本語](README.ja.md)
 
+## GRENADE! — 실제 프로젝트 쇼케이스
+
+아래 콘셉트 세트는 개발 중인 Unity 게임 **GRENADE!**의 UX/UI 사양서를 만들면서 `ui-ref`의 정본 계약 파이프라인과 동반 워크플로로 확정한 최종본입니다. 같은 작업에서 핵심 화면 10개, 재사용 컴포넌트 8개, 사용자 흐름 24개를 구조화·검증하고, 결정론적 와이어프레임과 클릭 가능한 상태 프로토타입, Unity uGUI 인계 데이터를 생성했습니다.
+
+| 아트 디렉션 키프레임 | 클럽 룸 허브 |
+| :---: | :---: |
+| [![밝은 옥상 캐치 경기장과 따뜻한 부실을 담은 GRENADE 아트 디렉션 키프레임](docs/showcase/grenade/01-art-direction-keyframe.png)](docs/showcase/grenade/01-art-direction-keyframe.png) | [![가장 가까운 미션 마커 하나만 확장한 GRENADE 클럽 룸 허브 콘셉트](docs/showcase/grenade/02-club-room-hub.png)](docs/showcase/grenade/02-club-room-hub.png) |
+| **4인 경기 HUD** | **결과·재경기 화면** |
+| [![4인 상태와 경기 페이즈를 보여 주는 GRENADE 경기 HUD 콘셉트](docs/showcase/grenade/03-match-hud.png)](docs/showcase/grenade/03-match-hud.png) | [![리플레이와 재경기 및 방 복귀 행동을 담은 GRENADE 결과 화면](docs/showcase/grenade/04-result-rewards.png)](docs/showcase/grenade/04-result-rewards.png) |
+
+> 이 이미지는 아트 방향, 정보 위계, 구도를 전달하기 위한 것입니다. 이미지 속 문구·수치·재화 값은 예시이며, 구현의 정본은 검토된 `ui_design` 계약입니다.
+
 근거 기반 게임 UX/UI 리서치 및 사양 컴파일러입니다. `ui-ref`는 레퍼런스 근거를 수집·인덱싱하고, 검토된 결정을 버전 관리 가능한 화면/컴포넌트 계약으로 만들며, 추적성과 생명주기를 검증합니다. 같은 원본에서 결정론적 와이어프레임, 읽기 쉬운 사양서, 클릭 가능한 프로토타입, 엔진 인계용 스캐폴드를 생성합니다.
 
 핵심 워크플로는 외부 의존성이 없습니다. JavaScript 렌더링 레퍼런스 사이트에는 Playwright를 선택적으로 사용하고, 영상에서 프레임을 추출할 때만 FFmpeg가 필요합니다.
@@ -298,15 +310,9 @@ v0.4.0 핵심 빌드는 의도적으로 JSON Design IR, Markdown, HTML, SVG, 정
 
 Python wheel은 `ui-ref` CLI만 설치하며 이 동반 스킬을 설치하거나 등록하지 않습니다. 동반 워크플로가 필요하면 저장소를 clone/download하거나 `.claude/skills/game-ux-ui-design/`을 사용 중인 어시스턴트가 지원하는 스킬 위치로 복사하세요.
 
-## 결과물 샘플
+## 저장소에 포함된 재현 가능 예제
 
-전체 동반 스킬 예제는 [`examples/lucid-dawn/`](examples/lucid-dawn/)에 있습니다. 문서화된 화면 12개, 주석 와이어프레임 13개, 토큰, 결정, 인용, 영어/중국어/한국어/일본어 디자인 문서를 포함합니다.
-
-![화면 유형별로 모은 UI 레퍼런스](docs/captures/references-found.png)
-
-<img src="docs/captures/hud.png" alt="주석이 있는 인게임 HUD 와이어프레임" width="900">
-
-<img src="docs/captures/levelup.png" alt="레벨업 선택" width="440"> <img src="docs/captures/results.png" alt="결과 화면" width="440">
+전체 공개 동반 스킬 예제는 [`examples/lucid-dawn/`](examples/lucid-dawn/)에 있습니다. 문서화된 화면 12개, 주석 와이어프레임 13개, 토큰, 결정, 인용, 영어/중국어/한국어/일본어 디자인 문서를 포함합니다.
 
 전체 예제: [영어](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.md) · [중국어](examples/lucid-dawn/lucid_dawn_ui_ux_design.zh.md) · [한국어](examples/lucid-dawn/lucid_dawn_ui_ux_design.ko.md) · [일본어](examples/lucid-dawn/lucid_dawn_ui_ux_design.ja.md) · [PDF](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.pdf).
 

@@ -7,6 +7,18 @@
 
 [English](README.md) · **中文** · [한국어](README.ko.md) · [日本語](README.ja.md)
 
+## GRENADE! — 真实项目展示
+
+以下概念图套件是在为开发中的 Unity 游戏 **GRENADE!** 制作 UX/UI 规格时，使用 `ui-ref` 规范契约管线与配套工作流最终确定的版本。同一轮工作结构化并验证了 10 个核心界面、8 个可复用组件和 24 条用户流程，同时生成确定性线框图、可点击状态原型以及 Unity uGUI 交接数据。
+
+| 美术方向关键帧 | 俱乐部房间枢纽 |
+| :---: | :---: |
+| [![描绘明亮屋顶接球赛场与温暖社团房间的 GRENADE 美术方向关键帧](docs/showcase/grenade/01-art-direction-keyframe.png)](docs/showcase/grenade/01-art-direction-keyframe.png) | [![仅展开最近任务标记的 GRENADE 俱乐部房间枢纽概念图](docs/showcase/grenade/02-club-room-hub.png)](docs/showcase/grenade/02-club-room-hub.png) |
+| **四人比赛 HUD** | **结果与再战界面** |
+| [![展示四名玩家状态和比赛阶段的 GRENADE 比赛 HUD](docs/showcase/grenade/03-match-hud.png)](docs/showcase/grenade/03-match-hud.png) | [![包含回放、再战与返回房间操作的 GRENADE 结果界面](docs/showcase/grenade/04-result-rewards.png)](docs/showcase/grenade/04-result-rewards.png) |
+
+> 这些图片用于传达美术方向、信息层级与构图。图片中的文字、数值和货币值均为示例；实现时仍以经过评审的 `ui_design` 契约为唯一事实来源。
+
 一个以证据为基础的游戏 UX/UI 研究与规格编译器。`ui-ref` 收集和索引参考证据，把经过评审的决策转为可版本管理的界面/组件契约，验证其可追溯性和生命周期，并从同一份源数据生成确定性的线框图、可读规格、可点击原型以及引擎交接脚手架。
 
 核心工作流没有外部依赖。JavaScript 渲染的参考站点可选用 Playwright；只有从视频提取帧时才需要 FFmpeg。
@@ -298,15 +310,9 @@ v0.4.0 核心构建会有意生成 JSON Design IR、Markdown、HTML、SVG 和静
 
 Python wheel 只安装 `ui-ref` CLI，不会安装或注册此配套技能。需要配套工作流时，请 clone/download 本仓库，或将 `.claude/skills/game-ux-ui-design/` 复制到当前助手支持的技能目录。
 
-## 成果示例
+## 仓库内可复现的完整示例
 
-完整配套技能示例位于 [`examples/lucid-dawn/`](examples/lucid-dawn/)：包含 12 个已记录界面、13 个带注释线框图、令牌、决策、引用，以及英语/中文/韩语/日语设计文档。
-
-![按界面类型归组的 UI 参考](docs/captures/references-found.png)
-
-<img src="docs/captures/hud.png" alt="带注释的游戏内 HUD 线框图" width="900">
-
-<img src="docs/captures/levelup.png" alt="升级选择" width="440"> <img src="docs/captures/results.png" alt="结果界面" width="440">
+完整的公开配套技能示例位于 [`examples/lucid-dawn/`](examples/lucid-dawn/)：包含 12 个已记录界面、13 个带注释线框图、令牌、决策、引用，以及英语/中文/韩语/日语设计文档。
 
 阅读完整示例：[英语](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.md) · [中文](examples/lucid-dawn/lucid_dawn_ui_ux_design.zh.md) · [韩语](examples/lucid-dawn/lucid_dawn_ui_ux_design.ko.md) · [日语](examples/lucid-dawn/lucid_dawn_ui_ux_design.ja.md) · [PDF](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.pdf)。
 

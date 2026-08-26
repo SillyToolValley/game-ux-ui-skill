@@ -7,6 +7,18 @@
 
 **English** · [中文](README.zh.md) · [한국어](README.ko.md) · [日本語](README.ja.md)
 
+## GRENADE! — real-project showcase
+
+The concept set below was finalized while using `ui-ref`'s canonical-contract pipeline and companion workflow to produce the UX/UI specification for **GRENADE!**, an in-development Unity game. That pass structured and validated 10 core screens, 8 reusable components, and 24 user flows, then generated deterministic wireframes, a clickable state prototype, and Unity uGUI handoff data.
+
+| Art-direction keyframe | Club Room Hub |
+| :---: | :---: |
+| [![GRENADE art-direction keyframe: a bright rooftop catch arena and warm club room](docs/showcase/grenade/01-art-direction-keyframe.png)](docs/showcase/grenade/01-art-direction-keyframe.png) | [![GRENADE Club Room Hub concept with a single expanded mission marker](docs/showcase/grenade/02-club-room-hub.png)](docs/showcase/grenade/02-club-room-hub.png) |
+| **Match HUD** | **Result and rematch** |
+| [![GRENADE four-player match HUD concept](docs/showcase/grenade/03-match-hud.png)](docs/showcase/grenade/03-match-hud.png) | [![GRENADE result screen with replay, rematch, and return actions](docs/showcase/grenade/04-result-rewards.png)](docs/showcase/grenade/04-result-rewards.png) |
+
+> These images communicate art direction, information hierarchy, and composition. Their labels, values, and economy numbers are illustrative; reviewed `ui_design` contracts remain the implementation source of truth.
+
 An evidence-backed game UX/UI research and specification compiler. `ui-ref` collects and indexes reference evidence, turns reviewed decisions into versioned screen/component contracts, validates their traceability and lifecycle, and generates deterministic wireframes, readable specs, clickable prototypes, and engine handoff scaffolds.
 
 It stays dependency-free for its core workflow. Playwright is optional for JavaScript-rendered reference sites, and FFmpeg is only needed when extracting frames from video.
@@ -298,15 +310,9 @@ The [`game-ux-ui-design` companion skill](.claude/skills/game-ux-ui-design/) inc
 
 The Python wheel installs the `ui-ref` CLI only; it does not install or register this companion skill. Clone/download the repository (or copy `.claude/skills/game-ux-ui-design/` into your assistant's supported skill location) when you need the companion workflow.
 
-## Sample output
+## Reproducible included example
 
-A full companion-skill example lives in [`examples/lucid-dawn/`](examples/lucid-dawn/): 12 documented screens, 13 annotated wireframes, tokens, decisions, citations, and English/Chinese/Korean/Japanese design documents.
-
-![UI references gathered and grouped by screen type](docs/captures/references-found.png)
-
-<img src="docs/captures/hud.png" alt="Annotated in-game HUD wireframe" width="900">
-
-<img src="docs/captures/levelup.png" alt="Level-up selection" width="440"> <img src="docs/captures/results.png" alt="Results screen" width="440">
+A full public companion-skill example lives in [`examples/lucid-dawn/`](examples/lucid-dawn/): 12 documented screens, 13 annotated wireframes, tokens, decisions, citations, and English/Chinese/Korean/Japanese design documents.
 
 Read the full example: [English](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.md) · [Chinese](examples/lucid-dawn/lucid_dawn_ui_ux_design.zh.md) · [Korean](examples/lucid-dawn/lucid_dawn_ui_ux_design.ko.md) · [Japanese](examples/lucid-dawn/lucid_dawn_ui_ux_design.ja.md) · [PDF](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.pdf).
 

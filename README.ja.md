@@ -7,6 +7,18 @@
 
 [English](README.md) · [中文](README.zh.md) · [한국어](README.ko.md) · **日本語**
 
+## GRENADE! — 実プロジェクトのショーケース
+
+以下のコンセプトセットは、開発中の Unity ゲーム **GRENADE!** の UX/UI 仕様を制作する際に、`ui-ref` の正本契約パイプラインとコンパニオンワークフローを用いて確定した最終版です。同じ工程で、主要 10 画面、再利用コンポーネント 8 個、ユーザーフロー 24 本を構造化・検証し、決定的なワイヤーフレーム、クリック可能な状態プロトタイプ、Unity uGUI 引き渡しデータを生成しました。
+
+| アートディレクション・キーフレーム | クラブルーム・ハブ |
+| :---: | :---: |
+| [![明るい屋上のキャッチ競技場と温かな部室を描いた GRENADE アートディレクション](docs/showcase/grenade/01-art-direction-keyframe.png)](docs/showcase/grenade/01-art-direction-keyframe.png) | [![最寄りのミッションマーカーだけを展開した GRENADE クラブルーム・ハブ](docs/showcase/grenade/02-club-room-hub.png)](docs/showcase/grenade/02-club-room-hub.png) |
+| **4 人対戦 HUD** | **リザルト／再戦画面** |
+| [![4 人の状態と試合フェーズを示す GRENADE 対戦 HUD](docs/showcase/grenade/03-match-hud.png)](docs/showcase/grenade/03-match-hud.png) | [![リプレイ、再戦、部屋へ戻る操作を備えた GRENADE リザルト画面](docs/showcase/grenade/04-result-rewards.png)](docs/showcase/grenade/04-result-rewards.png) |
+
+> これらの画像は、アート方向、情報階層、構図を伝えるためのものです。画像内の文言、数値、通貨値は例示であり、実装の正本はレビュー済みの `ui_design` 契約です。
+
 根拠に基づくゲーム UX/UI リサーチ兼仕様コンパイラです。`ui-ref` はリファレンス根拠を収集・索引化し、レビュー済みの判断をバージョン管理可能な画面／コンポーネント契約に変換し、そのトレーサビリティとライフサイクルを検証します。同じ原本から、決定的なワイヤーフレーム、読みやすい仕様、クリック可能なプロトタイプ、エンジン引き渡し用スキャフォールドを生成します。
 
 中核ワークフローに外部依存はありません。JavaScript レンダリングのリファレンスサイトでは Playwright を任意で使い、動画からフレームを抽出するときだけ FFmpeg が必要です。
@@ -298,15 +310,9 @@ v0.4.0 の中核ビルドは、意図的に JSON Design IR、Markdown、HTML、S
 
 Python wheel がインストールするのは `ui-ref` CLI のみで、このコンパニオンスキルのインストールや登録は行いません。コンパニオンワークフローが必要な場合は、リポジトリを clone/download するか、`.claude/skills/game-ux-ui-design/` を使用中のアシスタントが対応するスキル配置先へコピーしてください。
 
-## 成果物サンプル
+## リポジトリ内の再現可能な完全版サンプル
 
-完全なコンパニオンスキル例は [`examples/lucid-dawn/`](examples/lucid-dawn/) にあります。文書化された 12 画面、13 個の注釈付きワイヤーフレーム、トークン、判断、引用、英語／中国語／韓国語／日本語のデザイン文書を含みます。
-
-![画面タイプ別に集めた UI リファレンス](docs/captures/references-found.png)
-
-<img src="docs/captures/hud.png" alt="注釈付きゲーム内 HUD ワイヤーフレーム" width="900">
-
-<img src="docs/captures/levelup.png" alt="レベルアップ選択" width="440"> <img src="docs/captures/results.png" alt="リザルト画面" width="440">
+公開済みの完全なコンパニオンスキル例は [`examples/lucid-dawn/`](examples/lucid-dawn/) にあります。文書化された 12 画面、13 個の注釈付きワイヤーフレーム、トークン、判断、引用、英語／中国語／韓国語／日本語のデザイン文書を含みます。
 
 完全な例: [英語](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.md) · [中国語](examples/lucid-dawn/lucid_dawn_ui_ux_design.zh.md) · [韓国語](examples/lucid-dawn/lucid_dawn_ui_ux_design.ko.md) · [日本語](examples/lucid-dawn/lucid_dawn_ui_ux_design.ja.md) · [PDF](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.pdf)。
 
