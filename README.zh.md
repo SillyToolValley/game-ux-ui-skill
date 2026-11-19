@@ -1,11 +1,89 @@
-# Game-UI-Reference-Cli
+# game-ux-ui-skill
 
-![Version](https://img.shields.io/badge/version-0.4.0-blue)
+![Version](https://img.shields.io/badge/version-0.5.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Core deps](https://img.shields.io/badge/core%20dependencies-0-brightgreen)
 
 [English](README.md) · **中文** · [한국어](README.ko.md) · [日本語](README.ja.md)
+
+面向 AI 编码代理的**锚点优先**游戏 UI 工作流，以及一个让这个循环保持诚实的小型 CLI。
+
+选**一张**已发售游戏的界面作为锚点，仔细拆解，直接以完整保真度构建你的界面，然后把构建截图放在锚点旁边缩小差距。最多重复三轮。
+
+## 为什么锚点优先
+
+早期版本会收集大量参考图，把它们编译成带审批关卡的 JSON 界面契约，并渲染灰色线框图。产出看起来很完整，但实际上，直接把一张优秀已发售游戏的截图交给前沿模型，得到的界面更好。
+
+- 一张已发售的界面是数百个相互调校过的决策。混合多张参考，或在动笔之前先抽象成契约，都会丢掉这种调校，回归到品类平均水平。
+- 模型会匹配它能看到的东西。一张具体的图能设定质量标杆，十二张图的文字描述做不到。
+- 首次渲染之前的规格说明，把精力花在了回报最低的地方。行之有效的通用 UI 技能都把重心放在首次渲染之后：看结果、对比、修正。
+
+因此 v0.5 把单一锚点作为默认路径，契约流水线降级为可选的交接阶段。
+
+## 锚点循环
+
+```bash
+# 1. 登记该界面所锚定的那一张已发售界面
+ui-ref anchor add captures/reward-screen.png --screen level-up \
+  --game "<游戏名>" --source-url "<来源>"
+
+# 2. 对照图片填写 ui_anchor/level-up/ANATOMY.md：
+#    实测比例、字号、色彩角色、为何有效、保留/改变/舍弃
+
+# 3. 构建真实界面（HTML 或引擎内），并把截图存入一轮对比
+ui-ref shot build/level-up.html --screen level-up
+#    引擎构建？改用你自己的截图：
+ui-ref compare captures/unity-level-up.png --screen level-up
+
+# 4. 打开 ui_anchor/level-up/rounds/01/compare.html，填写 critique.md，修复最重要的三个差距
+
+# 5. 守住底线：字号、对比度、安全区、裁切、初始焦点
+ui-ref audit build/level-up.html --platform tv
+```
+
+| 命令 | 作用 | 依赖 |
+| --- | --- | --- |
+| `ui-ref anchor add` | 每个界面保存一张主锚点，记录来源、哈希、尺寸和提取的调色板，并生成 `ANATOMY.md` 模板。拒绝第二张主锚点；辅助参考最多两张，且必须用 `--borrow` 说明借用内容。 | 标准库（调色板需浏览器 extra） |
+| `ui-ref anchor show` | 列出锚点、拆解文档完成度和已进行的轮数。 | 标准库 |
+| `ui-ref shot` | 以锚点尺寸截取 HTML 文件或 URL，并开始一轮对比。 | 浏览器 extra |
+| `ui-ref compare` | 生成并排对比页：眯眼（模糊）、明度（灰度）、安全区与三分线参考、叠加、闪烁切换，以及九个视角的评审模板。可用于任何截图，包括引擎截图。 | 标准库 |
+| `ui-ref audit` | 按平台预设（`tv`、`desktop`、`handheld`、`mobile`）对 HTML 构建做确定性底线检查，说明未评估项，失败时以非零码退出。 | 浏览器 extra |
+
+`audit` 只守底线，无法告诉你界面好不好；那要靠 `compare` 和你的眼睛。
+
+## 技能
+
+[`.claude/skills/game-ux-ui-design/`](.claude/skills/game-ux-ui-design/) 是面向代理的一半，复制到项目的技能目录即可。`SKILL.md` 是简短的路由，细节按需加载（技能正文为英文）。
+
+| 文件 | 内容 |
+| --- | --- |
+| `references/anchor-workflow.md` | 选主锚点、拆解、转译（保留结构，改变身份）、完整示例 |
+| `references/finding-anchors.md` | 锚点从哪里来、如何截取、图库网站的使用条款 |
+| `references/game-ui-tells.md` | 模型生成的游戏 UI 会趋同的特征，以及已发售游戏的做法 |
+| `references/platform-numbers.md` | 字号、对比度、安全区、触控、本地化的底线，附来源和核实状态 |
+| `references/feel-and-states.md` | 时序起始值、焦点与导航规则、会破坏布局的状态 |
+| `references/spec-pipeline.md` | 可选：契约、线框、原型与引擎交接流程 |
+
+### 关于参考网站
+
+图库网站用于**发现**哪款游戏把某个界面做得最好，然后自己截取该界面。Game UI Database 的 robots.txt（2026 年 11 月核实）全面禁止 AI 代理和 AI 训练爬虫，并将其内容标记为 `ai-train=no, use=reference`。因此 `ui-ref collect` 会拒绝该网站的 URL，原有的站点预设也已移除。从任何网站采集前都应先查看其当前条款和 robots 规则。
+
+## 从其他技能学到的
+
+本次重新设计之前，我们调研了广泛使用的通用 UI 技能和游戏专用技能。
+
+- **以一个具体参考作为事实来源** — DESIGN.md 约定（Google `design.md`、`VoltAgent/awesome-design-md`）
+- **点名趋同默认值、构建前的简短计划、只在一处大胆、查看渲染结果** — Anthropic `frontend-design`
+- **窄动词、与设计判断分离的确定性检查、轮数上限、由非作者评审** — `pbakaus/impeccable`、`Leonxlnx/taste-skill`
+- **轻量路由加按需参考、如实标注“未评估”** — `Donchitos/Claude-Code-Game-Studios`、`gamedev-skills/awesome-gamedev-agent-skills`
+- **每行数据附来源和核实状态** — `fcsouza/agent-skills`
+
+所调研的技能中，没有一个在首次渲染之前设置契约与线框的编译阶段。
+
+## 可选：规格与交接流水线
+
+当团队需要书面规格、审批记录、可点击的流程原型或引擎脚手架时，v0.4 流水线仍然可用且未改动。请在界面做出来**之后**再运行它。以下内容是对该流水线的说明。
 
 ## GRENADE! — 真实项目展示
 
@@ -205,8 +283,8 @@ ui-ref export cocos
 ## 安装与测试
 
 ```bash
-git clone https://github.com/SillyToolValley/Game-UI-Reference-Cli
-cd Game-UI-Reference-Cli
+git clone https://github.com/SillyToolValley/game-ux-ui-skill
+cd game-ux-ui-skill
 python -m pip install -e .
 ui-ref --version
 ```
@@ -278,7 +356,6 @@ ui-ref collect --browser --gallery-class "thumb-card"
 
 | 站点键 | 域名 | 模式 | 说明 |
 | --- | --- | --- | --- |
-| `gameuidatabase` | gameuidatabase.com | gallery | 结构化 Game UI Database 图库；使用 `--browser`。 |
 | `interfaceingame` | interfaceingame.com | images | 游戏 UI 截图。 |
 | `screenlane` | screenlane.com | images | 移动 UI/UX 流程。 |
 | `collectui` | collectui.com | images | 每日 UI 灵感。 |

@@ -1,246 +1,150 @@
 ---
 name: game-ux-ui-design
 description: >-
-  Turn a game GDD, feature brief, screenshots, or gameplay video into evidence-linked,
-  testable UX/UI contracts, annotated wireframes, readable design documents, clickable
-  prototypes, and explicit engine handoff scaffolds. Use for game UI/UX design documents,
-  HUD or screen specifications, reverse engineering, interaction flows, UI review, and
-  implementation handoff. Works across genres; never force roguelite conventions onto an
-  unrelated game.
+  Design and build game UI that reaches the quality of shipped games: HUDs, menus, inventory,
+  shop, results, settings, and any other game screen, in HTML or in an engine. Anchors each
+  screen on one shipped game's screen, builds at full fidelity, and iterates by comparing
+  screenshots against that anchor. Use whenever the user asks to design, mock up, build,
+  restyle, or critique a game screen or HUD, or hands over a game screenshot as a reference.
+  Also covers game UI specifications, wireframes, and engine handoff documents on request.
+  Not for non-game product UI.
 ---
 
 # game-ux-ui-design
 
-Produce a game UI package that a mixed design, art, engineering, QA, and production team can
-review without guessing. The canonical source is the structured JSON contract under
-`ui_design/`; Markdown, HTML, SVG, prototypes, and engine files are generated views.
+A screen built from one strong shipped reference beats a screen built from a blend of many
+references and a long specification. A screenshot of a shipped game carries hundreds of
+decisions that were tuned together: proportion, density, type rhythm, material, where the eye
+lands. Averaging several references, or translating them into abstract contracts first, throws
+that coupling away and what comes back is plausible and generic.
 
-## Non-negotiable source model
+So the default path is short: pick one anchor, read it closely, build the real thing, look at
+the render next to the anchor, fix, repeat.
 
-- Keep reference images as separate files under `references/ui/` so their origin and hash
-  remain traceable. Display those files inline in generated Markdown/PDF/DOCX through
-  relative image paths. “Separate asset” and “inline display” are complementary rules.
-- Treat a GDD statement, direct visual observation, inference, assumption, standard, and
-  human decision as different provenance classes. Never present an inference as a fact.
-- Use immutable screen, component, element, reference, and decision IDs. Retire IDs; do not
-  silently reuse them.
-- AI may create drafts and mark work reviewed. Only a named human may approve a revision.
-  Never pass `--human-confirmed` unless the user has explicitly approved that exact revision.
-- Approval is bound to the contract hash and its token/flow/reference/component dependency
-  hashes. A dependency change makes the approval stale and blocks release output.
-- Do not invent runtime field or event names and attribute them to the GDD. Mark new names as
-  UI proposals or assumptions until the game contract adopts them.
-- Every interactive element needs input, default/focused/pressed/disabled states,
-  accessibility metadata, and measurable acceptance criteria before review.
-- The engine exporters create handoff scaffolds, not finished production UI. Always surface
-  `manual_or_lossy` and unsupported items from the capability report.
+## Pick the smallest path that fits
 
-## Workflow — use these stable stage IDs in notes and handoffs
+| The user wants | Do |
+| --- | --- |
+| A screen or HUD designed or built | The anchor loop below |
+| An existing screen reviewed or improved | Steps 4–5 of the loop against an anchor, or a critique with `references/game-ui-tells.md` |
+| A spec, design document, flow prototype, approval trail, or engine handoff | The anchor loop first if the screen does not exist yet, then `references/spec-pipeline.md` |
+| A reverse-engineered description of screenshots or video | `references/spec-pipeline.md`, OBSERVE stage |
 
-### ORIENT — understand the game and scope
+Do not run the spec pipeline to make a screen look good. It records decisions; it does not
+make them.
 
-Read the GDD/brief and identify the target platforms, aspect ratios, locales, input devices,
-engine, screen list, core flow, game state per screen, and explicit exclusions. If there is no
-brief, ask only for information that materially changes the result; otherwise record reasonable
-assumptions in the contracts.
+## The anchor loop
 
-Initialize once:
+### 1. Brief — five lines, no more
 
-```bash
-ui-ref init --project-name "<game>"
-ui-ref spec init --project-name "<game>" --locale <locale>
-```
+Game and its fiction in one sentence. The screen and the one thing the player does on it.
+Platform, input, and viewing distance. Engine or medium of the build. What the user already
+decided. If one of these is missing and it changes the result, ask once; otherwise assume and
+say so.
 
-`ui-ref init` is idempotent and preserves existing configuration. `ui-ref spec init --force`
-refreshes starter metadata without deleting authored screens, components, or human notes.
+Classify the screen, because it sets how loud the design may be:
 
-### EVIDENCE — collect, curate, and register references
+- **Operate** — in-play HUD, combat overlays. Restraint. The game is the picture; the UI
+  borders it.
+- **Manage** — inventory, shop, skills, map, settings. Density and scan speed.
+- **Experience** — title, rewards, results, level-up, story beats. Commit to the fantasy.
 
-Follow `references/ui-ref-cli.md`. Prefer first-party captures and stable, attributable source
-pages. Keep collection runs small and honor robots/site terms. Curate selected evidence into
-`references/ui/<collection>/<category>/`, then run:
+### 2. Anchor — one hero per screen
+
+The hero anchor is one screenshot of one shipped game's screen that does the same job as
+yours, at the quality you want. If the user supplied one, use it. If not, propose two or three
+candidates by game and screen, say what each would give, recommend one, and ask the user to
+capture it. `references/finding-anchors.md` covers how to choose, where to look, and what you
+may and may not do with gallery sites.
 
 ```bash
-ui-ref scan-local
-ui-ref spec import-references
+ui-ref anchor add captures/hades-boon.png --screen level-up --game "Hades" \
+  --source-url "<where it came from>" --capture own-capture
 ```
 
-For every applied pattern, record what is directly visible, why it transfers to this game, and
-where the transfer may fail. If no reference is available, use an explicit
-`evidence_exception`; do not pretend an image exists.
+One hero. A second image is allowed only as a support that fills one named gap
+(`--role support --borrow "rarity frame treatment"`), at most two. If you want a third, the
+hero is wrong: change it.
 
-### OBSERVE — optional screenshot/video reverse engineering
+Without the CLI, do the same by hand: one image, one folder, the anatomy file below.
 
-Use this only when media is an input. It extracts or indexes evidence and creates a bounded AI
-analysis packet; it does not call an AI provider by itself.
+### 3. Read — fill in `ANATOMY.md` from the pixels
+
+`anchor add` writes `ui_anchor/<screen>/ANATOMY.md` and, when the browser extra is installed,
+extracts the real palette. Open the anchor image and fill the file in. Measure: region sizes
+as a share of the screen, type sizes in pixels, the number of distinct sizes, the accent's
+share of the frame, corner radii, stroke weights. Then state why it works, as mechanisms tied
+to visible features.
+
+Then translate. **Keep** structure and mechanisms: proportions, hierarchy, density, rhythm,
+the way states are shown. **Change** identity: palette, typeface, material, ornament, icons,
+all content. Your game's palette and materials come from its own fiction, not from the anchor.
+**Drop** what only the anchor's game needs.
+
+End with the plan: four to six named colours with roles, type roles, an ASCII layout at your
+proportions, the one place the design spends its boldness. Ask whether this plan would fit any
+similar game unchanged. If it would, it is a default, not a choice; revise.
+`references/anchor-workflow.md` has a worked example and the common misreadings.
+
+### 4. Build — the real screen, at full fidelity
+
+Build in the medium the user asked for. If none was named, a single HTML file is the fastest
+thing to iterate on and screenshot. Use real content from the game: real item names, real
+numbers at their largest plausible width, real states. No grey boxes, no lorem ipsum.
+
+Before building, read `references/game-ui-tells.md` once. It lists what model-made game UI
+converges on. Each item is a default, not a rule: the anchor and the brief win.
+
+Use `references/platform-numbers.md` for text size, safe area, and target size floors, and
+`references/feel-and-states.md` for timing, focus, and state behaviour.
+
+### 5. Compare — look at the render, next to the anchor
 
 ```bash
-ui-ref analyze media <screenshots-or-video> --interval 2 --frame-limit 120
+ui-ref shot build/level-up.html --screen level-up      # screenshot + start a round
+ui-ref compare captures/unity-levelup.png --screen level-up   # or bring an engine capture
+ui-ref audit build/level-up.html --platform tv         # floors: text, contrast, safe area
 ```
 
-Give `analysis-prompt.md`, `analysis-packet.json`, and `analysis-result.schema.json` to the
-chosen vision model. The result must identify provider, model, prompt version, input hash,
-evidence IDs, confidence, and one of `observed`, `inferred`, or `unknown` for every claim.
-Import only after validating that result:
+Each round writes `compare.html` (side by side, squint, values, guides, overlay) and a
+`critique.md` with nine lenses. Look at both images. Fill in the critique with what you see,
+pick the top three gaps, fix them together, and run the next round.
 
-```bash
-ui-ref analyze import <result.json> --packet <analysis-packet.json>
-```
+- Judge at the size and distance the screen ships at.
+- If you can delegate, have a fresh reviewer who has not seen your reasoning compare the two
+  images. Authors grade their own work generously.
+- `audit` checks floors only. A pass means nothing is broken; it does not mean the screen is
+  good. Report what it did not assess.
+- Three rounds is the usual cap. If the screen is still below the anchor after three, the
+  anchor or the plan is wrong. Go back to step 2 or 3 instead of polishing.
+- Closing the gap means matching the anchor's level of finish and clarity, not its look. A
+  candidate that could be mistaken for the anchor's game has failed lens nine.
 
-Imported screens remain `draft`. Unknown interaction facts—pause behavior, first focus,
-cancel/back, destructive confirmation, missing/error behavior—become questions, not invented
-answers.
+Show the user the latest candidate beside the anchor, state which gaps remain, and say what
+was not assessed.
 
-### SPEC — author the canonical contract
+## Ground rules
 
-Create stable starters, then edit their JSON contracts:
+- Anchors are for study. Keep the source with every capture, never ship or redistribute
+  another game's assets, logos, fonts, or character art, and never reproduce a screen closely
+  enough to be taken for the original.
+- Respect each reference site's terms and robots rules. Game UI Database disallows AI agents
+  and AI training in its robots.txt: do not fetch it or feed its images to a model. The user
+  can browse it to discover which game to study, then capture that screen themselves. Details
+  in `references/finding-anchors.md`.
+- Report honestly. Say which checks ran, which did not, and where the candidate still falls
+  short of the anchor.
+- The user's direction outranks every default in this skill.
 
-```bash
-ui-ref spec add-screen "<name>" --id <screen-id> --wireframe
-ui-ref spec add-component "<name>" --id <component-id>
-```
+## Files
 
-Each screen must cover purpose/player goal, entry and exit, viewport/safe area, evidence,
-elements and geometry, input interactions, complete states, data bindings with provenance,
-accessibility, edge cases, open questions, and acceptance criteria. Use
-`references/design-structure.md` and `templates/per-screen.md` as authoring checklists, not as
-a second canonical source.
-
-For plain-language `UX 설계 의도`, explain:
-
-- what the player must notice first and why;
-- how the layout prevents mistakes and supports mouse/keyboard/gamepad/touch as applicable;
-- how feedback supports feel without hiding critical information;
-- how first-time and repeat use differ;
-- how non-color cues, focus, text scaling, reduced motion, and recovery work;
-- the top risks and the cheapest test that could disprove the design.
-
-Reason with `references/ux-heuristics.md`, but do not fill the deliverable body with framework
-names or unexplained jargon.
-
-### VALIDATE — make omissions machine-visible
-
-```bash
-ui-ref spec validate --strict
-ui-ref wireframe lint ui_design/wireframes/<screen>.uiwire
-ui-ref wireframe render ui_design/wireframes/<screen>.uiwire
-ui-ref spec check --strict
-```
-
-`.uiwire` is the deterministic, AI-friendly wireframe source; SVG is generated. The older
-`templates/wireframe-kit.svg` remains a manual fallback for highly customized redlines. If that
-fallback is used, run `templates/validate_wireframe.py` and visually inspect the render.
-
-Do not mark validation complete while there are contract errors, broken references, duplicate
-IDs, out-of-bounds geometry, missing states/input/accessibility/acceptance, stale approvals, or
-invalid wireframes. Warnings and open questions must be summarized for the reviewer.
-
-### REVIEW — record review and human approval
-
-First move complete work to reviewed:
-
-```bash
-ui-ref spec promote screen <screen-id> --to reviewed --by "<reviewer>" --note "<scope>"
-```
-
-Show the user the exact revision, remaining assumptions, evidence limits, and impact of manual
-engine work. Only after that named human explicitly approves the revision may you run:
-
-```bash
-ui-ref spec promote screen <screen-id> --to approved --by "<human>" \
-  --note "<approval scope>" --human-confirmed
-```
-
-Repeat for reusable components. If an approved artifact changes, deliberately move it back to
-draft and re-review; never repair the approval ledger by hand.
-
-### RENDER — build consistent human-readable outputs
-
-```bash
-ui-ref spec build
-```
-
-This compiles one Design IR and generates `design-spec.md`, readable `design-spec.html`,
-annotated wireframe SVGs, and a build manifest under `ui_design/build/`. These files are
-generated and should not be manually edited.
-
-For wide meeting deliverables, convert the generated Markdown with:
-
-```bash
-pip install markdown python-docx
-python .claude/skills/game-ux-ui-design/templates/build_pdf.py ui_design/build/design-spec.md --lang <lang>
-python .claude/skills/game-ux-ui-design/templates/build_docx.py ui_design/build/design-spec.md --lang <lang>
-```
-
-Those paths are relative to the game project root and therefore work when the commands above
-are run in the same directory as `ui_design/`. If the skill was installed elsewhere, replace
-`.claude/skills/game-ux-ui-design` with that installed skill directory.
-For DOCX, an SVG is rasterized through a sibling PNG, optional CairoSVG, or local Chrome/Edge;
-if none is available, the document keeps an explicit fallback note instead of silently omitting it.
-
-### PROTO — exercise flows and non-default states
-
-```bash
-ui-ref prototype build
-ui-ref prototype build --release
-```
-
-The static prototype supports screen transitions, state scenarios, keyboard focus, basic
-gamepad confirm/back, exit flows, safe-area preview, and a visible contract hash. Draft builds
-are for exploration. `--release` requires current human approval for every included screen.
-
-### EXPORT — generate explicit engine handoff scaffolds
-
-```bash
-ui-ref export unity-uitoolkit
-ui-ref export unity-ugui
-ui-ref export godot
-ui-ref export cocos
-```
-
-Use `--screen <id>` for a slice and `--release` for approved-only output. Read
-`capability-report.json` and `export-manifest.json` every time. UI Toolkit produces UXML/USS
-and bindings; Godot produces Control-scene scaffolds and bindings; uGUI and Cocos currently
-produce structured handoff manifests where reliable native serialization is not available.
-Do not claim that generated scaffolds replace engine integration, localization, asset hookup,
-performance profiling, or playtesting.
-
-### VERIFY — close the loop
-
-```bash
-ui-ref spec trace screen <screen-id>
-ui-ref spec check --strict
-```
-
-Verify the built-source hashes, evidence links, data bindings, focus order, state scenarios,
-release gate, exporter capability notes, and measurable acceptance criteria. Run a visual check
-of every wireframe/prototype at target ratios and re-test high-density readability in an engine
-build. A wireframe alone cannot validate combat legibility or final feel.
-
-## Deliverable language and honesty
-
-- Lead with the player-facing decision and its evidence, not tool mechanics.
-- Separate `observed`, `inferred`, `assumed`, and `approved` statements.
-- Keep numbers sourced (GDD, standard, or decision ID) and include units.
-- If evidence, fonts, engine version, or a human decision is missing, name the gap and its
-  impact. Never fabricate completion.
-- Do not redistribute harvested screenshots as an asset pack; preserve source attribution and
-  usage notes.
-
-## Fallback when `ui-ref` is unavailable
-
-Produce a clearly labeled draft using `templates/design-skeleton.md`, `templates/per-screen.md`,
-and `templates/wireframe-kit.svg`. Keep the same IDs, provenance distinctions, state/input/
-accessibility/acceptance coverage, and inline-display/separate-asset rule. State that lifecycle
-hashes, deterministic builds, prototypes, and engine exports remain pending until the CLI is
-available.
-
-## Relevant files
-
-- `references/ui-ref-cli.md` — collection, curation, evidence import, and rights notes.
-- `references/design-structure.md` — contract coverage and generated-document anatomy.
-- `references/annotated-wireframe-svg.md` — `.uiwire` and manual SVG redline conventions.
-- `references/engine-binding.md` — runtime integration/performance guidance.
-- `references/ux-heuristics.md` and `references/screen-exemplars.md` — private reasoning aids.
-- `references/art-concept-imagegen.md` — optional art-direction exploration; not contract truth.
-- `templates/` — manual fallback and PDF/DOCX conversion tools.
+- `references/anchor-workflow.md` — choosing, reading, and translating an anchor; worked example.
+- `references/finding-anchors.md` — where to find anchors, how to capture them, site terms.
+- `references/game-ui-tells.md` — what generated game UI converges on, and the alternatives.
+- `references/platform-numbers.md` — text size, safe area, contrast, target floors with sources.
+- `references/feel-and-states.md` — timing, feedback, focus, and state behaviour.
+- `references/ux-heuristics.md`, `references/screen-exemplars.md` — reasoning aids for UX
+  rationale; the exemplars are roguelite-leaning, do not transplant them to other genres.
+- `references/spec-pipeline.md` — optional contracts, wireframes, prototype, and engine handoff,
+  with `design-structure.md`, `annotated-wireframe-svg.md`, `engine-binding.md`,
+  `ui-ref-cli.md`, `art-concept-imagegen.md`, and `templates/`.

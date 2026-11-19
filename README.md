@@ -1,15 +1,95 @@
-# Game-UI-Reference-Cli
+# game-ux-ui-skill
 
-![Version](https://img.shields.io/badge/version-0.4.0-blue)
+![Version](https://img.shields.io/badge/version-0.5.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Core deps](https://img.shields.io/badge/core%20dependencies-0-brightgreen)
 
 **English** · [中文](README.zh.md) · [한국어](README.ko.md) · [日本語](README.ja.md)
 
-## GRENADE! — real-project showcase
+A game UX/UI design skill for AI coding agents (Claude Code and other SKILL.md-compatible agents), with a small CLI that keeps the loop honest. Formerly *Game-UI-Reference-Cli*.
 
-The concept set below was finalized while using `ui-ref`'s canonical-contract pipeline and companion workflow to produce the UX/UI specification for **GRENADE!**, an in-development Unity game. That pass structured and validated 10 core screens, 8 reusable components, and 24 user flows, then generated deterministic wireframes, a clickable state prototype, and Unity uGUI handoff data.
+Pick **one** shipped game's screen as the anchor, read it closely, build your screen at full fidelity, then put a screenshot of your build next to the anchor and close the gap. Repeat up to three times.
+
+## Why anchor-first
+
+Earlier versions of this project collected many references, compiled them into JSON screen contracts with approval gates, and rendered grey wireframes. The output looked thorough. In practice, handing a frontier model one screenshot of a strong shipped game produced better screens.
+
+The reasons are structural:
+
+- A shipped screen is hundreds of decisions tuned against each other. Blending several references, or abstracting them into contracts before anything is drawn, discards that tuning and regresses to the genre average.
+- A model matches what it can see. One concrete image sets a quality bar; a description of twelve images does not.
+- Specification before the first render spends effort where it pays least. The general-purpose UI skills that work well put their weight after the first render: look at the result, compare, fix.
+
+So v0.5 makes the single anchor the default path and turns the contract pipeline into an optional handoff stage.
+
+## The anchor loop
+
+```bash
+# 1. Register the one shipped screen this screen is anchored on.
+ui-ref anchor add captures/reward-screen.png --screen level-up \
+  --game "<game title>" --source-url "<where it came from>"
+
+# 2. Fill in ui_anchor/level-up/ANATOMY.md from the image:
+#    measured proportions, type sizes, colour roles, why it works, keep / change / drop.
+
+# 3. Build the real screen (HTML or in your engine), then screenshot it into a round.
+ui-ref shot build/level-up.html --screen level-up
+#    Engine build? Bring your own capture instead:
+ui-ref compare captures/unity-level-up.png --screen level-up
+
+# 4. Open ui_anchor/level-up/rounds/01/compare.html, fill in critique.md, fix the top three gaps.
+
+# 5. Hold the floor: text size, contrast, safe area, clipping, initial focus.
+ui-ref audit build/level-up.html --platform tv
+```
+
+| Command | What it does | Needs |
+| --- | --- | --- |
+| `ui-ref anchor add` | Stores one hero anchor per screen with source, hash, size, and extracted palette; writes the `ANATOMY.md` template. Refuses a second hero. Allows at most two supports, each with a named `--borrow`. | Standard library (palette needs the browser extra) |
+| `ui-ref anchor show` | Lists anchors, how much of each anatomy is filled in, and rounds run. | Standard library |
+| `ui-ref shot` | Screenshots an HTML file or URL at the anchor's size and starts a comparison round. | Browser extra |
+| `ui-ref compare` | Writes a side-by-side sheet with squint (blur), values (greyscale), safe-area and thirds guides, overlay, and flicker, plus a nine-lens critique template. Works with any screenshot, including engine captures. | Standard library |
+| `ui-ref audit` | Deterministic floor checks on an HTML build per platform preset (`tv`, `desktop`, `handheld`, `mobile`). Reports what it could not assess. Exits non-zero on failures. | Browser extra |
+
+`audit` holds the floor. It cannot tell you a screen is good; `compare` and your eyes do that.
+
+## The skill
+
+[`.claude/skills/game-ux-ui-design/`](.claude/skills/game-ux-ui-design/) is the agent-facing half. Copy it into your project's skill directory. Its `SKILL.md` is a short router; the detail loads on demand:
+
+| File | Contents |
+| --- | --- |
+| `references/anchor-workflow.md` | Choosing a hero, reading it, translating it (keep structure, change identity), a worked example. |
+| `references/finding-anchors.md` | Where anchors come from, how to capture them, and what gallery sites allow. |
+| `references/game-ui-tells.md` | What model-made game UI converges on, and what shipped games do instead. |
+| `references/platform-numbers.md` | Text size, contrast, safe area, touch, and localisation floors, each with its source and verification status. |
+| `references/feel-and-states.md` | Timing starting values, focus and navigation rules, the states that break layouts. |
+| `references/spec-pipeline.md` | The optional contract, wireframe, prototype, and engine-handoff workflow. |
+
+### A note on reference sites
+
+Use gallery sites to discover which game does a screen best, then capture that screen yourself. Game UI Database's robots.txt (checked November 2026) disallows AI agents and AI training crawlers and marks its content `ai-train=no, use=reference`. `ui-ref collect` therefore refuses its URLs and the old site preset is gone. Check any site's current terms and robots rules before collecting from it.
+
+## What this borrows from other skills
+
+The redesign followed a review of widely used general-purpose UI skills and game-specific ones. The ideas taken, and where they came from:
+
+- **One concrete reference as the source of truth** — the DESIGN.md convention (Google's `design.md`, `VoltAgent/awesome-design-md`).
+- **Named convergence defaults, a short plan before building, boldness spent in one place, and looking at the render** — Anthropic's `frontend-design` skill.
+- **Narrow verbs, deterministic checks kept separate from design judgement, a capped number of rounds, critique by a reviewer who did not write the work** — `pbakaus/impeccable` and `Leonxlnx/taste-skill`.
+- **A thin router with on-demand references and honest "not assessed" verdicts** — `Donchitos/Claude-Code-Game-Studios`, `gamedev-skills/awesome-gamedev-agent-skills`.
+- **Cited numbers with a verification status per row** — `fcsouza/agent-skills`.
+
+None of the skills reviewed puts a contract-and-wireframe compile stage before the first render.
+
+## Optional: the spec and handoff pipeline
+
+When a team needs a written specification, an approval trail, a clickable flow prototype, or engine scaffolds, the v0.4 pipeline is still here and unchanged. Run it after the screen exists.
+
+### GRENADE! — real-project showcase
+
+The concept set below was finalized while using the contract pipeline and companion workflow to produce the UX/UI specification for **GRENADE!**, an in-development Unity game. That pass structured and validated 10 core screens, 8 reusable components, and 24 user flows, then generated deterministic wireframes, a clickable state prototype, and Unity uGUI handoff data.
 
 | Art-direction keyframe | Club Room Hub |
 | :---: | :---: |
@@ -19,13 +99,13 @@ The concept set below was finalized while using `ui-ref`'s canonical-contract pi
 
 > These images communicate art direction, information hierarchy, and composition. Their labels, values, and economy numbers are illustrative; reviewed `ui_design` contracts remain the implementation source of truth.
 
-An evidence-backed game UX/UI research and specification compiler. `ui-ref` collects and indexes reference evidence, turns reviewed decisions into versioned screen/component contracts, validates their traceability and lifecycle, and generates deterministic wireframes, readable specs, clickable prototypes, and engine handoff scaffolds.
+The pipeline collects and indexes reference evidence, turns reviewed decisions into versioned screen/component contracts, validates their traceability and lifecycle, and generates deterministic wireframes, readable specs, clickable prototypes, and engine handoff scaffolds.
 
 It stays dependency-free for its core workflow. Playwright is optional for JavaScript-rendered reference sites, and FFmpeg is only needed when extracting frames from video.
 
 > The tool does not turn an AI guess into an approved design. Reverse-engineered results are imported as `draft`, and final approval always requires an explicitly named human reviewer.
 
-## v0.4.0 at a glance
+### Pipeline at a glance
 
 - **Reference evidence:** index local screenshots or politely collect explicitly listed public pages; every item keeps a source path/URL and hashable provenance.
 - **Canonical contracts:** versioned JSON for projects, tokens, flows, references, decisions, approvals, screens, and reusable components.
@@ -36,7 +116,7 @@ It stays dependency-free for its core workflow. Playwright is optional for JavaS
 - **Engine handoff:** export explicit scaffolds for Unity UI Toolkit, Unity uGUI, Godot, and Cocos, with capability and hash manifests.
 - **Evidence-bounded reverse engineering:** prepare screenshot/video packets for any multimodal model, then validate and import its claims as drafts only.
 
-## Five-minute workflow
+### Pipeline workflow
 
 Run these commands from your game project root. Global options such as `--project-root` and `--design-root` go before the command.
 
@@ -205,13 +285,13 @@ Always read `capability-report.json`; it is the explicit boundary between preser
 ## Install and test
 
 ```bash
-git clone https://github.com/SillyToolValley/Game-UI-Reference-Cli
-cd Game-UI-Reference-Cli
+git clone https://github.com/SillyToolValley/game-ux-ui-skill
+cd game-ux-ui-skill
 python -m pip install -e .
 ui-ref --version
 ```
 
-The core commands use only Python 3.10+ standard-library modules. For JavaScript-rendered reference sites:
+The core commands use only Python 3.10+ standard-library modules. For `shot`, `audit`, palette extraction, and JavaScript-rendered reference pages:
 
 ```bash
 python -m pip install -e ".[browser]"
@@ -226,7 +306,7 @@ Run the regression suite with the standard library:
 python -m unittest discover -s tests -v
 ```
 
-## Reference collection (legacy workflow, still supported)
+## Reference collection (for sites that permit it)
 
 The original `init`, `scan-local`, and `collect` workflow remains compatible. Collection is intentionally conservative:
 
@@ -278,7 +358,6 @@ Each run writes `collected_pages_<run_id>.json` and a browsable `contact_sheet_<
 
 | Site key | Domain | Mode | Notes |
 | --- | --- | --- | --- |
-| `gameuidatabase` | gameuidatabase.com | gallery | Structured Game UI Database gallery; use `--browser`. |
 | `interfaceingame` | interfaceingame.com | images | Game UI screenshots. |
 | `screenlane` | screenlane.com | images | Mobile UI/UX flows. |
 | `collectui` | collectui.com | images | Daily UI inspiration. |
@@ -320,6 +399,10 @@ Read the full example: [English](examples/lucid-dawn/lucid_dawn_ui_ux_design.en.
 
 | Command | Purpose |
 | --- | --- |
+| `ui-ref anchor add` / `show` | Register and inspect the hero anchor for each screen. |
+| `ui-ref shot` | Screenshot an HTML build and start a comparison round. |
+| `ui-ref compare` | Build the anchor-versus-candidate sheet and critique template. |
+| `ui-ref audit` | Run platform floor checks on an HTML build. |
 | `ui-ref init` | Initialize reference research and config. |
 | `ui-ref scan-local` | Index local reference media. |
 | `ui-ref collect` | Fetch explicitly listed public reference pages. |

@@ -43,7 +43,7 @@ MEDIA_EXTS = IMAGE_EXTS | VIDEO_EXTS | HTML_EXTS
 MAX_DOWNLOAD_BYTES = 25 * 1024 * 1024
 MAX_ROBOTS_BYTES = 1024 * 1024
 MAX_ERROR_BODY_BYTES = 64 * 1024
-__version__ = "0.4.0"
+__version__ = "0.5.0"
 
 DEFAULT_CONFIG = {
     "project_name": "",
@@ -53,7 +53,7 @@ DEFAULT_CONFIG = {
     "design_workspace": "ui_design",
     "default_delay_seconds": 8.0,
     "default_max_pages": 20,
-    "user_agent": f"ui-ref-cli/{__version__} (+https://github.com/SillyToolValley/Game-UI-Reference-Cli)",
+    "user_agent": f"game-ux-ui-skill/{__version__} (+https://github.com/SillyToolValley/game-ux-ui-skill)",
     "gallery_class": "galleryimage",
 }
 
@@ -66,7 +66,7 @@ CONFIG_SEARCH_PATHS = (
 # Known UI-reference databases and how to read them.
 #
 # To add a site, append one entry. `match` is a domain substring used to auto-select the
-# preset from a URL. `mode` is "gallery" (structured anchors, like Game UI Database) or
+# preset from a URL. `mode` is "gallery" (structured anchors carrying data-title/data-thumb) or
 # "images" (harvest the rendered page's <img>/srcset images — the generic default). For
 # "gallery" mode, `gallery_class` is the anchor class that marks a gallery image; its
 # title/id/thumbnail are read from data-title / data-imageid / data-thumb (see LinkExtractor).
@@ -74,7 +74,6 @@ CONFIG_SEARCH_PATHS = (
 # Login-walled sites (e.g. Mobbin's app screens) are intentionally NOT listed: their
 # galleries require authentication and cannot be collected by this tool.
 SITE_PRESETS: dict[str, dict[str, str]] = {
-    "gameuidatabase":  {"match": "gameuidatabase.com", "mode": "gallery", "gallery_class": "galleryimage", "notes": "Game UI Database — structured gallery; JS-rendered, use --browser."},
     "interfaceingame": {"match": "interfaceingame.com", "mode": "images", "notes": "Interface In Game — game UI screenshots."},
     "screenlane":      {"match": "screenlane.com", "mode": "images", "notes": "Mobile UI/UX flows."},
     "collectui":       {"match": "collectui.com", "mode": "images", "notes": "Daily UI inspiration."},
@@ -86,6 +85,23 @@ SITE_PRESETS: dict[str, dict[str, str]] = {
 }
 
 DEFAULT_GALLERY_CLASS = "galleryimage"
+
+# Sites that have opted out of automated or AI-related collection. `collect` never fetches
+# them, whatever the generic robots rule for this tool's user agent says. Checked 2026-11:
+# gameuidatabase.com's robots.txt disallows AI agents and AI training crawlers outright
+# (Claude-User, ChatGPT-User, GPTBot, ClaudeBot, ...), sets `ai-train=no, use=reference` for
+# everyone else, and the site sits behind a bot challenge. Browse it yourself instead.
+OPTED_OUT_HOSTS: dict[str, str] = {
+    "gameuidatabase.com": "its robots.txt disallows AI agents and AI training (ai-train=no, use=reference)",
+}
+
+
+def opted_out_reason(url: str) -> str | None:
+    host = (urlparse(url).hostname or "").lower()
+    for domain, reason in OPTED_OUT_HOSTS.items():
+        if host == domain or host.endswith("." + domain):
+            return reason
+    return None
 
 # A realistic desktop browser UA for the --browser (Playwright) path. Many sites serve
 # different markup to — or block — the default "HeadlessChrome" UA, so present a normal one.
@@ -513,8 +529,8 @@ def command_init(args: argparse.Namespace) -> int:
             urls_file,
             "# Add one explicit reference URL per line.\n"
             "# Keep runs small and slow. Assets are not downloaded unless requested.\n"
-            "# Example (a JS-rendered gallery needs `--browser`):\n"
-            "# https://www.gameuidatabase.com/index.php?&set=1&scrn=904\n",
+            "# Only list sites whose terms allow collection for your use.\n"
+            "# A JS-rendered page needs `--browser`.\n",
         )
     write_json(cfg_path_value, cfg)
     print(f"Initialized UI research workspace: {workspace}")
@@ -686,7 +702,7 @@ def fetch_browser(url: str, timeout_ms: int, wait_ms: int, headless: bool, scrol
     except Exception as exc:
         return HtmlFetchResult(url, "ERROR", "", "", fetched_at,
                                f"Playwright unavailable ({exc}). Install with: "
-                               f"pip install 'ui-ref-cli[browser]' && playwright install chromium")
+                               f"pip install 'game-ux-ui-skill[browser]' && playwright install chromium")
     try:
         with sync_playwright() as pw:
             try:
@@ -1017,7 +1033,11 @@ def command_collect(args: argparse.Namespace) -> int:
 
     print(f"Collecting {len(selected)} page(s), delay={delay}s, browser={args.browser}")
     for index, url in enumerate(selected, start=1):
-        allowed, robots_note = can_fetch_url(url, user_agent)
+        opt_out = opted_out_reason(url)
+        if opt_out:
+            allowed, robots_note = False, f"site opted out of automated collection: {opt_out}"
+        else:
+            allowed, robots_note = can_fetch_url(url, user_agent)
         record: dict[str, Any] = {
             "index": index,
             "url": url,
@@ -1097,7 +1117,7 @@ def command_collect(args: argparse.Namespace) -> int:
     if not args.browser and total_gallery == 0 and any_html:
         print(
             "Tip: 0 items were extracted with the static fetcher. Most reference sites are "
-            "JavaScript-rendered - re-run with --browser (needs: pip install 'ui-ref-cli[browser]' "
+            "JavaScript-rendered - re-run with --browser (needs: pip install 'game-ux-ui-skill[browser]' "
             "&& playwright install chromium). For a structured gallery, set --gallery-class; "
             "for a generic image harvest, use --mode images."
         )
@@ -1105,7 +1125,7 @@ def command_collect(args: argparse.Namespace) -> int:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="ui-ref", description="Evidence-backed game UX/UI research and specification compiler.")
+    parser = argparse.ArgumentParser(prog="ui-ref", description="Anchor-first game UI workflow: anchor on one shipped screen, build, compare, repeat. Optional spec and engine-handoff pipeline.")
     parser.add_argument("--version", action="version", version=f"ui-ref {__version__}")
     parser.add_argument("--project-root", default=".", help="Project root. Default: current directory.")
     parser.add_argument("--config", default=None, help="Path to ui_ref_config.json.")
@@ -1146,7 +1166,11 @@ def build_parser() -> argparse.ArgumentParser:
     collect.add_argument("--download-title-contains", action="append", default=[], help="Only download gallery images whose title contains this text (items without a title are excluded). Can be repeated.")
     collect.set_defaults(func=command_collect)
 
-    # Keep design dependencies lazy so legacy init/scan/collect remain lightweight.
+    # The default path: anchor on one shipped screen, build, compare, repeat.
+    from ui_ref_anchor import register_anchor_commands
+    register_anchor_commands(sub)
+
+    # Optional team-handoff pipeline. Kept lazy so the commands above stay lightweight.
     from ui_ref_design import register_design_commands
     register_design_commands(sub)
 

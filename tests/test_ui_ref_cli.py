@@ -124,6 +124,21 @@ class UiRefLegacyCliTests(unittest.TestCase):
         self.assertNotIn("javascript:", html)
         self.assertIn('href="#"', html)
 
+    def test_collect_refuses_sites_that_opted_out_of_automated_collection(self) -> None:
+        self.assertNotIn("gameuidatabase", ui_ref_cli.SITE_PRESETS)
+        self.assertIsNotNone(ui_ref_cli.opted_out_reason("https://www.gameuidatabase.com/index.php?scrn=53"))
+        self.assertIsNone(ui_ref_cli.opted_out_reason("https://notgameuidatabase.com/"))
+        self.run_cli("init")
+        with mock.patch.object(ui_ref_cli, "can_fetch_url") as robots, \
+                mock.patch.object(ui_ref_cli, "fetch_static") as static, \
+                mock.patch.object(ui_ref_cli, "fetch_browser") as browser:
+            result, output = self.run_cli("collect", "--url", "https://www.gameuidatabase.com/", "--delay", "0", "--browser")
+        self.assertEqual(result, 0)
+        robots.assert_not_called()
+        static.assert_not_called()
+        browser.assert_not_called()
+        self.assertIn("opted out", output)
+
 
 if __name__ == "__main__":
     unittest.main()

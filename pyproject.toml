@@ -3,24 +3,25 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "ui-ref-cli"
-version = "0.4.0"
-description = "Evidence-backed game UX/UI research and specification compiler: references, contracts, wireframes, prototypes, and engine handoff."
+name = "game-ux-ui-skill"
+version = "0.5.0"
+description = "Game UX/UI design skill for AI coding agents: anchor on one shipped screen, build, compare against it, repeat. Optional spec, prototype, and engine-handoff pipeline."
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-keywords = ["game-ui", "ui", "ux", "reference", "design", "specification", "wireframe", "prototype"]
+keywords = ["game-ui", "game-ux", "game-ui-design", "claude-skill", "agent-skill", "anchor", "ui", "ux", "reference", "design", "specification", "wireframe", "prototype"]
 dependencies = []
 
 [project.optional-dependencies]
 browser = ["playwright>=1.40"]
 
 [project.urls]
-Homepage = "https://github.com/SillyToolValley/Game-UI-Reference-Cli"
-Repository = "https://github.com/SillyToolValley/Game-UI-Reference-Cli"
+Homepage = "https://github.com/SillyToolValley/game-ux-ui-skill"
+Repository = "https://github.com/SillyToolValley/game-ux-ui-skill"
 
 [project.scripts]
 ui-ref = "ui_ref_cli:main"
+game-ux-ui = "ui_ref_cli:main"
 
 [tool.setuptools]
-py-modules = ["ui_ref_cli", "ui_ref_design"]
+py-modules = ["ui_ref_cli", "ui_ref_anchor", "ui_ref_design"]
