@@ -15,3 +15,6 @@ ui_design/analysis/
 
 # Project-specific generated specifications stay local unless explicitly curated for publication.
 deliverables/
+
+# Anchor workspaces hold third-party study captures and per-round screenshots; keep them local.
+ui_anchor/

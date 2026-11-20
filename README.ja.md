@@ -1,11 +1,89 @@
-# Game-UI-Reference-Cli
+# game-ux-ui-skill
 
-![Version](https://img.shields.io/badge/version-0.4.0-blue)
+![Version](https://img.shields.io/badge/version-0.5.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Core deps](https://img.shields.io/badge/core%20dependencies-0-brightgreen)
 
 [English](README.md) · [中文](README.zh.md) · [한국어](README.ko.md) · **日本語**
+
+AI コーディングエージェント向けの**アンカー優先**ゲーム UI ワークフローと、そのループを誠実に保つための小さな CLI です。
+
+発売済みゲームの画面を**1 枚**アンカーとして選び、丁寧に読み解き、自分の画面を最初から完成度の高い状態で作り、そのスクリーンショットをアンカーの隣に並べて差を詰めます。最大 3 ラウンド繰り返します。
+
+## なぜアンカー優先か
+
+以前のバージョンは多数のリファレンスを集め、承認ゲート付きの JSON 画面契約にコンパイルし、グレーのワイヤーフレームを描いていました。成果物はもっともらしく見えましたが、実際には、優れた発売済みゲームのスクリーンショット 1 枚をフロンティアモデルにそのまま渡したほうが良い画面になりました。
+
+- 発売済みの画面は、互いに調整し合った数百の判断の集まりです。複数のリファレンスを混ぜたり、描く前に契約へ抽象化したりすると、その調整が失われ、ジャンルの平均に回帰します。
+- モデルは見えるものに合わせます。具体的な 1 枚の画像は品質の基準になりますが、12 枚分の説明文はなりません。
+- 最初のレンダリング前の仕様化は、効果の最も小さいところに労力を使います。うまく機能する汎用 UI スキルは、最初のレンダリングの後、つまり結果を見て比較し直す工程に重心を置いています。
+
+そこで v0.5 では単一アンカーを既定の経路とし、契約パイプラインは任意の引き渡し工程に下げました。
+
+## アンカーループ
+
+```bash
+# 1. この画面のアンカーとなる発売済み画面を 1 枚登録
+ui-ref anchor add captures/reward-screen.png --screen level-up \
+  --game "<ゲーム名>" --source-url "<入手元>"
+
+# 2. 画像を見ながら ui_anchor/level-up/ANATOMY.md を記入:
+#    実測した比率、文字サイズ、色の役割、機能する理由、維持/変更/除外
+
+# 3. 実際の画面を作り（HTML またはエンジン）、スクリーンショットをラウンドに保存
+ui-ref shot build/level-up.html --screen level-up
+#    エンジンビルドの場合は自分のキャプチャを使用
+ui-ref compare captures/unity-level-up.png --screen level-up
+
+# 4. ui_anchor/level-up/rounds/01/compare.html を開き、critique.md を記入して上位 3 つの差を修正
+
+# 5. 下限の確認: 文字サイズ、コントラスト、セーフエリア、切れ、初期フォーカス
+ui-ref audit build/level-up.html --platform tv
+```
+
+| コマンド | 内容 | 必要なもの |
+| --- | --- | --- |
+| `ui-ref anchor add` | 画面ごとにヒーローアンカー 1 枚を、入手元・ハッシュ・サイズ・抽出パレットとともに保存し、`ANATOMY.md` テンプレートを生成。2 枚目のヒーローは拒否。サポートは最大 2 枚で、`--borrow` で借りる要素を明記。 | 標準ライブラリ（パレットはブラウザ extra） |
+| `ui-ref anchor show` | アンカー、解剖ドキュメントの記入状況、ラウンド数を表示。 | 標準ライブラリ |
+| `ui-ref shot` | HTML ファイルや URL をアンカーのサイズで撮影し、比較ラウンドを開始。 | ブラウザ extra |
+| `ui-ref compare` | 並列表示、スクイント（ぼかし）、明度（グレースケール）、セーフエリアと三分割ガイド、オーバーレイ、フリッカーを備えた比較シートと、9 観点のクリティークテンプレートを生成。エンジンのキャプチャなど任意のスクリーンショットで使用可能。 | 標準ライブラリ |
+| `ui-ref audit` | プラットフォームプリセット（`tv`、`desktop`、`handheld`、`mobile`）ごとの決定的な下限チェック。評価できなかった項目を明示し、失敗時は非ゼロで終了。 | ブラウザ extra |
+
+`audit` が守るのは下限だけです。画面が良いかどうかは `compare` と自分の目で判断します。
+
+## スキル
+
+[`.claude/skills/game-ux-ui-design/`](.claude/skills/game-ux-ui-design/) がエージェント向けの半分です。プロジェクトのスキルディレクトリにコピーしてください。`SKILL.md` は短いルーターで、詳細は必要に応じて読み込まれます（スキル本文は英語）。
+
+| ファイル | 内容 |
+| --- | --- |
+| `references/anchor-workflow.md` | ヒーローの選び方、読み解き、翻訳（構造は維持、アイデンティティは変更）、作業例 |
+| `references/finding-anchors.md` | アンカーの入手先、キャプチャ方法、ギャラリーサイトの利用条件 |
+| `references/game-ui-tells.md` | モデル製ゲーム UI が収束しがちな特徴と、発売済みゲームのやり方 |
+| `references/platform-numbers.md` | 文字サイズ・コントラスト・セーフエリア・タッチ・ローカライズの下限と、出典・検証状況 |
+| `references/feel-and-states.md` | タイミングの初期値、フォーカスとナビゲーションの規則、レイアウトを壊す状態 |
+| `references/spec-pipeline.md` | 任意: 契約・ワイヤーフレーム・プロトタイプ・エンジン引き渡しのワークフロー |
+
+### リファレンスサイトについて
+
+ギャラリーサイトは、どのゲームがその画面を最もうまく作っているかを**見つけるため**に使い、画面は自分でキャプチャしてください。Game UI Database の robots.txt（2026 年 11 月確認）は AI エージェントと AI 学習クローラーを全面的に拒否し、コンテンツを `ai-train=no, use=reference` としています。そのため `ui-ref collect` は同サイトの URL を拒否し、従来のサイトプリセットも削除しました。どのサイトでも、収集前に現在の利用規約と robots ルールを確認してください。
+
+## 他のスキルから学んだこと
+
+広く使われている汎用 UI スキルとゲーム専用スキルを調査したうえで再設計しました。
+
+- **具体的なリファレンス 1 つを基準にする** — DESIGN.md の慣習（Google `design.md`、`VoltAgent/awesome-design-md`）
+- **収束しがちな既定値に名前を付ける、作る前の短い計画、大胆さは 1 か所だけ、レンダリング結果を見る** — Anthropic `frontend-design`
+- **狭い動詞、デザイン判断と切り離した決定的チェック、ラウンド上限、作者以外によるクリティーク** — `pbakaus/impeccable`、`Leonxlnx/taste-skill`
+- **薄いルーターとオンデマンド参照、「未評価」を正直に示す判定** — `Donchitos/Claude-Code-Game-Studios`、`gamedev-skills/awesome-gamedev-agent-skills`
+- **行ごとに出典と検証状況を付けた数値** — `fcsouza/agent-skills`
+
+調査したスキルの中に、最初のレンダリングの前に契約とワイヤーフレームのコンパイル工程を置くものはありませんでした。
+
+## 任意: 仕様・引き渡しパイプライン
+
+チームに文書化された仕様、承認履歴、クリック可能なフロープロトタイプ、エンジン用スキャフォールドが必要な場合、v0.4 のパイプラインはそのまま使えます。画面ができた**後**に実行してください。以下はこのパイプラインの説明です。
 
 ## GRENADE! — 実プロジェクトのショーケース
 
@@ -205,8 +283,8 @@ ui-ref export cocos
 ## インストールとテスト
 
 ```bash
-git clone https://github.com/SillyToolValley/Game-UI-Reference-Cli
-cd Game-UI-Reference-Cli
+git clone https://github.com/SillyToolValley/game-ux-ui-skill
+cd game-ux-ui-skill
 python -m pip install -e .
 ui-ref --version
 ```
@@ -278,7 +356,6 @@ ui-ref collect --browser --gallery-class "thumb-card"
 
 | サイトキー | ドメイン | モード | 備考 |
 | --- | --- | --- | --- |
-| `gameuidatabase` | gameuidatabase.com | gallery | 構造化 Game UI Database ギャラリー。`--browser` を使用。 |
 | `interfaceingame` | interfaceingame.com | images | ゲーム UI スクリーンショット。 |
 | `screenlane` | screenlane.com | images | モバイル UI/UX フロー。 |
 | `collectui` | collectui.com | images | 日々の UI インスピレーション。 |

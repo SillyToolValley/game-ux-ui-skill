@@ -1,11 +1,89 @@
-# Game-UI-Reference-Cli
+# game-ux-ui-skill
 
-![Version](https://img.shields.io/badge/version-0.4.0-blue)
+![Version](https://img.shields.io/badge/version-0.5.0-blue)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Core deps](https://img.shields.io/badge/core%20dependencies-0-brightgreen)
 
 [English](README.md) · [中文](README.zh.md) · **한국어** · [日本語](README.ja.md)
+
+AI 코딩 에이전트(Claude Code 등 SKILL.md 호환 에이전트)용 게임 UX/UI 디자인 스킬과, 그 루프를 정직하게 유지해 주는 작은 CLI입니다. 이전 이름은 *Game-UI-Reference-Cli* 입니다.
+
+출시된 게임의 화면 **한 장**을 앵커로 고르고, 꼼꼼히 해부한 뒤, 실제 화면을 고해상도로 바로 만들고, 결과 스크린샷을 앵커 옆에 놓고 차이를 줄입니다. 최대 세 번 반복합니다.
+
+## 왜 앵커 우선인가
+
+이전 버전은 레퍼런스를 여러 장 모아 JSON 화면 계약서와 승인 게이트로 컴파일하고 회색 와이어프레임을 그렸습니다. 결과물은 그럴듯했지만, 실제로는 잘 만든 출시작 스크린샷 한 장을 프론티어 모델에 그대로 주는 쪽이 더 좋은 화면을 냈습니다.
+
+- 출시된 화면은 서로 맞물려 조율된 수백 개의 결정입니다. 여러 레퍼런스를 섞거나 그리기 전에 계약서로 추상화하면 그 조율이 사라지고 장르 평균으로 회귀합니다.
+- 모델은 눈에 보이는 것을 따라갑니다. 구체적인 이미지 한 장은 품질 기준이 되지만, 열두 장에 대한 설명은 그렇지 못합니다.
+- 첫 렌더 이전의 명세는 효과가 가장 작은 곳에 노력을 씁니다. 잘 작동하는 범용 UI 스킬들은 첫 렌더 이후, 즉 결과를 보고 비교하고 고치는 데 무게를 둡니다.
+
+그래서 v0.5는 단일 앵커를 기본 경로로 삼고, 계약 파이프라인은 선택적인 인계 단계로 내렸습니다.
+
+## 앵커 루프
+
+```bash
+# 1. 이 화면의 앵커가 될 출시작 화면 한 장을 등록
+ui-ref anchor add captures/reward-screen.png --screen level-up \
+  --game "<게임 제목>" --source-url "<출처>"
+
+# 2. ui_anchor/level-up/ANATOMY.md 를 이미지에서 직접 채움:
+#    측정한 비율, 글자 크기, 색 역할, 잘 작동하는 이유, 유지/변경/제외
+
+# 3. 실제 화면을 만들고(HTML 또는 엔진) 스크린샷을 라운드로 저장
+ui-ref shot build/level-up.html --screen level-up
+#    엔진 빌드라면 직접 캡처한 이미지를 사용
+ui-ref compare captures/unity-level-up.png --screen level-up
+
+# 4. ui_anchor/level-up/rounds/01/compare.html 을 열고 critique.md 를 채운 뒤 상위 3개 차이를 수정
+
+# 5. 하한선 점검: 글자 크기, 대비, 세이프 에어리어, 잘림, 초기 포커스
+ui-ref audit build/level-up.html --platform tv
+```
+
+| 명령 | 하는 일 | 필요 조건 |
+| --- | --- | --- |
+| `ui-ref anchor add` | 화면당 히어로 앵커 한 장을 출처·해시·크기·추출 팔레트와 함께 저장하고 `ANATOMY.md` 템플릿을 생성. 두 번째 히어로는 거부. 서포트는 최대 2장, 각각 `--borrow` 로 가져올 것을 명시. | 표준 라이브러리 (팔레트는 브라우저 extra) |
+| `ui-ref anchor show` | 앵커, 해부 문서 작성 진행도, 라운드 수를 표시. | 표준 라이브러리 |
+| `ui-ref shot` | HTML 파일이나 URL을 앵커 크기로 캡처하고 비교 라운드를 시작. | 브라우저 extra |
+| `ui-ref compare` | 나란히 보기, 스퀸트(블러), 명도(그레이스케일), 세이프 에어리어·삼분할 가이드, 오버레이, 플리커가 있는 비교 시트와 9개 관점의 크리틱 템플릿 생성. 엔진 캡처 등 어떤 스크린샷이든 사용 가능. | 표준 라이브러리 |
+| `ui-ref audit` | 플랫폼 프리셋(`tv`, `desktop`, `handheld`, `mobile`)별 결정론적 하한선 검사. 평가하지 못한 항목을 명시하고, 실패 시 0이 아닌 코드로 종료. | 브라우저 extra |
+
+`audit` 은 하한선만 지킵니다. 화면이 좋은지는 `compare` 와 눈으로 판단합니다.
+
+## 스킬
+
+[`.claude/skills/game-ux-ui-design/`](.claude/skills/game-ux-ui-design/) 가 에이전트용 절반입니다. 프로젝트의 스킬 디렉터리에 복사해 쓰세요. `SKILL.md` 는 짧은 라우터이고 세부 내용은 필요할 때 로드됩니다(스킬 본문은 영어).
+
+| 파일 | 내용 |
+| --- | --- |
+| `references/anchor-workflow.md` | 히어로 선정, 해부, 번역(구조는 유지, 정체성은 변경), 작업 예시 |
+| `references/finding-anchors.md` | 앵커를 어디서 구하고 어떻게 캡처하는지, 갤러리 사이트의 이용 조건 |
+| `references/game-ui-tells.md` | 모델이 만든 게임 UI가 수렴하는 패턴과 출시작의 대안 |
+| `references/platform-numbers.md` | 글자 크기·대비·세이프 에어리어·터치·현지화 하한선과 출처, 검증 상태 |
+| `references/feel-and-states.md` | 타이밍 시작값, 포커스/내비게이션 규칙, 레이아웃을 깨는 상태들 |
+| `references/spec-pipeline.md` | 선택 사항: 계약서·와이어프레임·프로토타입·엔진 인계 워크플로 |
+
+### 레퍼런스 사이트에 대해
+
+갤러리 사이트는 어떤 게임이 그 화면을 가장 잘 만들었는지 **찾는 용도**로 쓰고, 화면은 직접 캡처하세요. Game UI Database의 robots.txt(2026년 11월 확인)는 AI 에이전트와 AI 학습 크롤러를 전면 차단하고 콘텐츠를 `ai-train=no, use=reference` 로 표시합니다. 그래서 `ui-ref collect` 는 해당 사이트 URL을 거부하며 기존 사이트 프리셋도 제거했습니다. 어떤 사이트든 수집 전에 현재 약관과 robots 규칙을 확인하세요.
+
+## 다른 스킬에서 배운 것
+
+널리 쓰이는 범용 UI 스킬과 게임 전용 스킬을 검토한 뒤 재설계했습니다.
+
+- **구체적인 레퍼런스 하나를 기준으로 삼기** — DESIGN.md 관례 (Google `design.md`, `VoltAgent/awesome-design-md`)
+- **수렴 기본값에 이름 붙이기, 짧은 사전 계획, 과감함은 한 곳에만, 렌더 결과를 직접 보기** — Anthropic `frontend-design`
+- **좁은 명령, 디자인 판단과 분리된 결정론적 검사, 라운드 상한, 작성자가 아닌 리뷰어의 크리틱** — `pbakaus/impeccable`, `Leonxlnx/taste-skill`
+- **얇은 라우터와 온디맨드 레퍼런스, "평가 안 함"을 솔직히 밝히는 판정** — `Donchitos/Claude-Code-Game-Studios`, `gamedev-skills/awesome-gamedev-agent-skills`
+- **행마다 출처와 검증 상태가 붙은 수치** — `fcsouza/agent-skills`
+
+검토한 스킬 중 첫 렌더 이전에 계약서·와이어프레임 컴파일 단계를 두는 것은 없었습니다.
+
+## 선택 사항: 스펙·인계 파이프라인
+
+팀에 문서화된 사양, 승인 이력, 클릭 가능한 플로 프로토타입, 엔진 스캐폴드가 필요하면 v0.4 파이프라인을 그대로 쓸 수 있습니다. 화면이 만들어진 **뒤에** 실행하세요. 아래 내용은 이 파이프라인에 대한 설명입니다.
 
 ## GRENADE! — 실제 프로젝트 쇼케이스
 
@@ -205,8 +283,8 @@ ui-ref export cocos
 ## 설치와 테스트
 
 ```bash
-git clone https://github.com/SillyToolValley/Game-UI-Reference-Cli
-cd Game-UI-Reference-Cli
+git clone https://github.com/SillyToolValley/game-ux-ui-skill
+cd game-ux-ui-skill
 python -m pip install -e .
 ui-ref --version
 ```
@@ -278,7 +356,6 @@ ui-ref collect --browser --gallery-class "thumb-card"
 
 | 사이트 키 | 도메인 | 모드 | 설명 |
 | --- | --- | --- | --- |
-| `gameuidatabase` | gameuidatabase.com | gallery | 구조화된 Game UI Database 갤러리. `--browser` 사용. |
 | `interfaceingame` | interfaceingame.com | images | 게임 UI 스크린샷. |
 | `screenlane` | screenlane.com | images | 모바일 UI/UX 흐름. |
 | `collectui` | collectui.com | images | 일일 UI 영감 자료. |

@@ -19,7 +19,7 @@
 > 레퍼런스 이미지는 `references/ui/`에 별도 파일로 보관하고, 본문에는 상대 경로로 인라인
 > 표시한다. 수집물은 개인 연구용 인용이며 원본 출처와 권리 메모를 함께 남긴다.
 
-*출처: Game UI Database — {category}.*
+*출처: {game} — {capture source}.*
 
 ![{게임 A — 차용 포인트}](references/ui/{collection}/{category}/{a}.jpg)
 **무엇을.** {참고한 요소} **왜.** {이유} → 본작 적용: {콜아웃 코드}

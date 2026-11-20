@@ -4,25 +4,15 @@ Before drawing a screen, study the recognized exemplars for that screen type and
 named pattern into the wireframe + the UX 설계 의도. **Cite which exemplar each layout decision
 follows** (e.g. "timer top-center per Vampire Survivors; pause-on-level-up per VS").
 
-## Reference galleries (cite both, with roles)
+> Scope: these exemplars lean towards roguelite and survivor-like games. For other genres use
+> them as an example of the level of specificity wanted, not as patterns to transplant. In the
+> anchor loop they are a list of candidate hero anchors, one per screen.
 
-- **Game UI Database — `gameuidatabase.com`** — primary. 1,300+ games, 55,000+ shots, free,
-  searchable **by screen type** + attributes (art style, camera, control scheme, color,
-  layout, font size). Has video + colorblind filters. **JS-rendered → harvest with
-  `ui-ref collect --browser`.**
-- **Interface In Game — `interfaceingame.com`** — curated whole-screen + per-game pages
-  (e.g. `/games/risk-of-rain-2/`). Use for clean composition refs and single-title deep dives.
+## Reference galleries
 
-### Game UI Database deep-links (paste into `ui_research/urls.txt`)
-
-| Screen type | URL |
-| --- | --- |
-| Choose Boon/Upgrade (level-up) | `https://www.gameuidatabase.com/index.php?tag=86` |
-| Results Screen | `https://www.gameuidatabase.com/index.php?scrn=53` |
-| Rewards & Experience | `https://www.gameuidatabase.com/index.php?scrn=54` |
-| Enemy Health & Damage (boss bars) | `https://www.gameuidatabase.com/index.php?scrn=143` |
-| Hades (per-game) | `https://www.gameuidatabase.com/gameData.php?id=534` |
-| Dead Cells (per-game) | `https://www.gameuidatabase.com/gameData.php?id=1780` |
+Use galleries to discover which game does a screen best, then capture that screen yourself.
+Game UI Database disallows AI agents and AI training in its robots.txt: do not fetch or
+harvest it. See `finding-anchors.md`.
 
 ---
 
@@ -52,13 +42,13 @@ follows** (e.g. "timer top-center per Vampire Survivors; pause-on-level-up per V
   unlock state; clear locked/unlocked affordance; scannable so playstyle reads at a glance.
 
 ### Results / summary
-- **Exemplars:** Brotato win/loss recap, Hades run recap; GUIDB Results (`scrn=53`).
+- **Exemplars:** Brotato win/loss recap, Hades run recap.
 - **Pattern:** **partition** into (a) final build (weapons + passives — RoR2 scaling-icon
   idea) and (b) run stats (time, level, kills, damage, currency); surface unlocks/meta
   progression; **don't cramp either** (the Brotato community pain point).
 
 ### Boss HUD variant
-- **Exemplars:** GUIDB Enemy Health & Damage (`scrn=143`); LoL Swarm behavior.
+- **Exemplars:** LoL Swarm behavior; boss bars in action roguelites.
 - **Pattern:** long horizontal bar at **TOP, taking over the top-center timer slot during
   the fight**; show the boss **NAME**; **SEGMENT** the bar to telegraph phases; optional
   green→yellow→red shift.
@@ -114,4 +104,4 @@ the boss bar so remaining-time visibility isn't lost). Unannounced deviations re
 - jboger.substack.com "The secret sauce of Vampire Survivors" · vampire.survivors.wiki "Level up"
 - LoL Swarm (leagueoflegends.fandom.com) · Hades HUD redesign (medium @bramhadalvi)
 - RoR2 inventory (blog.rwittmann.com) · Halls of Torment review (rogueliker.com)
-- Dead Cells (gameuidatabase id=1780; kokutech flow-state) · Brotato & 20MTD (Steam community)
+- Dead Cells (kokutech flow-state) · Brotato & 20MTD (Steam community)

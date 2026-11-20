@@ -1,4 +1,7 @@
-# Reference evidence with `ui-ref`
+# Reference evidence with `ui-ref` (spec pipeline)
+
+For the default anchor loop you need only `ui-ref anchor add`; see `anchor-workflow.md`. This
+file covers the multi-reference evidence catalogue used by the optional spec pipeline.
 
 `ui-ref` keeps research evidence separate from authored UI contracts:
 
@@ -32,8 +35,10 @@ Use stable, descriptive filenames. Collection and category become searchable man
 ## 2. Collect a small source set
 
 Put one explicit source page per line in `ui_research/urls.txt`. Prefer first-party captures
-or stable game/interface gallery pages. Avoid login walls and do not attempt to bypass access
-controls.
+and official pages. Collect only from sites whose terms allow it, avoid login walls, and do not
+attempt to bypass access controls. Game UI Database disallows AI agents
+and AI training in its robots.txt, and `ui-ref collect` refuses its URLs (see
+`finding-anchors.md`).
 
 For JavaScript-rendered pages:
 
